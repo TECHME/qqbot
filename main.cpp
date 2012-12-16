@@ -12,11 +12,11 @@
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
 
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
 
@@ -398,7 +398,8 @@ static void command_loop()
 
 int main(int argc, char *argv[])
 {
-    char *qqnumber = NULL, *password = NULL;
+    std::string qqnumber, password;
+
     LwqqErrorCode err;
     int i, c, e = 0;
     
@@ -408,46 +409,35 @@ int main(int argc, char *argv[])
     }
 
     progname = fs::basename(argv[0]);
-    
 
-    const struct option long_options[] = {
-        { "version", 0, 0, 'v' },
-        { "help", 0, 0, 'h' },
-        { "user", 0, 0, 'u' },
-        { "pwd", 0, 0, 'p' },
-        { 0, 0, 0, 0 }
-    };
+	
+	po::options_description desc("qqbot options");
+	desc.add_options()
+	    ( "version,v", "output version" )
+		( "help,h", "produce help message" )
+        ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
+		( "pwd,p", po::value<std::string>(&password), "password" )
+		;
+
+	po::variables_map vm;
+	po::store(po::parse_command_line(argc, argv, desc), vm);
+	po::notify(vm);
+
+	if (vm.count("help") || vm.size() == 0)
+	{
+		usage();
+		return 1;
+	}
+	if (vm.count("version"))
+	{
+		printf("lwqq-cli version %s, Copyright (c) 2012 "
+		"mathslinux\n", LWQQ_CLI_VERSION);
+	}
 
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
     signal(SIGINT, signal_handler);
-    
-    while ((c = getopt_long(argc, argv, "vhu:p:",
-                            long_options, NULL)) != EOF) {
-        switch (c) {
-        case 'v':
-            printf("lwqq-cli version %s, Copyright (c) 2012 "
-                   "mathslinux\n", LWQQ_CLI_VERSION);
-            exit(0);
-        case 'h':
-            usage();
-            exit(0);
-        case 'u':
-            qqnumber = optarg;
-            break;
-        case 'p':
-            password = optarg;
-            break;
-        default:
-            e++;
-            break;
-        }
-    }
-    if (e || argc > optind) {
-        usage();
-        exit(1);
-    }
-    
-    lc = lwqq_client_new(qqnumber, password);
+
+    lc = lwqq_client_new(qqnumber.c_str(), password.c_str());
     if (!lc) {
         lwqq_log(LOG_NOTICE, "Create lwqq client failed\n");
         return -1;
