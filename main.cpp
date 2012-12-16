@@ -17,11 +17,11 @@
 #include <libgen.h>
 #include <pthread.h>
 extern "C" {
-#include "lwqq/login.h"
-#include "lwqq/logger.h"
-#include "lwqq/info.h"
-#include "lwqq/smemory.h"
-#include "lwqq/msg.h"
+#include <lwqq/login.h>
+#include <lwqq/logger.h>
+#include <lwqq/info.h>
+#include <lwqq/smemory.h>
+#include <lwqq/msg.h>
 };
 
 #define LWQQ_CLI_VERSION "0.0.1"
