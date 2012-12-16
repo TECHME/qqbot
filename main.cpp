@@ -379,6 +379,7 @@ static void command_loop()
 int main(int argc, char *argv[])
 {
     std::string qqnumber, password;
+    std::string cfgfile;
 
     LwqqErrorCode err;
     int i, c, e = 0;
@@ -391,6 +392,7 @@ int main(int argc, char *argv[])
 		( "help,h", "produce help message" )
         ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
 		( "pwd,p", po::value<std::string>(&password), "password" )
+		( "config,c", po::value<std::string>(&cfgfile), "config file" )
 		;
 
 	po::variables_map vm;
@@ -406,6 +408,11 @@ int main(int argc, char *argv[])
 	{
 		printf("lwqq-cli version %s, Copyright (c) 2012 "
 		"mathslinux\n", LWQQ_CLI_VERSION);
+	}
+
+	if (vm.count("config"))
+	{
+		//TODO
 	}
 
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
