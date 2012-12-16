@@ -293,24 +293,22 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
 
 static void recvmsg_thread(LwqqRecvMsgList *list)
 {
-    LwqqRecvMsgList *l = (LwqqRecvMsgList *)list;
-
     /* Poll to receive message */
-    l->poll_msg(l);
+    list->poll_msg(list);
 
     /* Need to wrap those code so look like more nice */
     while (1) {
         LwqqRecvMsg *recvmsg;
-        pthread_mutex_lock(&l->mutex);
-        if (SIMPLEQ_EMPTY(&l->head)) {
+        pthread_mutex_lock(&list->mutex);
+        if (SIMPLEQ_EMPTY(&list->head)) {
             /* No message now, wait 100ms */
-            pthread_mutex_unlock(&l->mutex);
-            usleep(100000);
+            pthread_mutex_unlock(&list->mutex);
+            boost::this_thread::sleep(boost::posix_time::milliseconds(100));
             continue;
         }
-        recvmsg = SIMPLEQ_FIRST(&l->head);
-        SIMPLEQ_REMOVE_HEAD(&l->head, entries);
-        pthread_mutex_unlock(&l->mutex);
+        recvmsg = SIMPLEQ_FIRST(&list->head);
+        SIMPLEQ_REMOVE_HEAD(&list->head, entries);
+        pthread_mutex_unlock(&list->mutex);
         handle_new_msg(recvmsg);
     }
 }
