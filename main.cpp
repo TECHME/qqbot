@@ -1,10 +1,7 @@
 /**
- * @file   cli.c
- * @author mathslinux <riegamaths@gmail.com>
- * @date   Sat Jun 16 01:58:17 2012
- * 
- * @brief  Command Line Interface for Lwqq
- * 
+ * @file   main.cpp
+ * @author microcai <microcaicai@gmail.com>
+ * @origal_author mathslinux <riegamaths@gmail.com>
  * 
  */
 
@@ -225,21 +222,6 @@ static void cli_logout(LwqqClient *lc)
     }
 }
 
-static void usage()
-{
-    fprintf(stdout, "Usage: lwqq-cli [options]...\n"
-            "lwqq-cli: A qq client based on gtk+ uses webqq protocol\n"
-            "  -v, --version\n"
-            "      Show version of program\n"
-            "  -u, --user\n"
-            "      Set username(qqnumber)\n"
-            "  -p, --pwd\n"
-            "      Set password\n"
-            "  -h, --help\n"
-            "      Print help and exit\n"
-        );
-}
-
 void signal_handler(int signum)
 {
 	if (signum == SIGINT) {
@@ -400,15 +382,9 @@ int main(int argc, char *argv[])
 
     LwqqErrorCode err;
     int i, c, e = 0;
-    
-    if (argc == 1) {
-        usage();
-        exit(1);
-    }
 
     progname = fs::basename(argv[0]);
 
-	
 	po::options_description desc("qqbot options");
 	desc.add_options()
 	    ( "version,v", "output version" )
@@ -423,7 +399,7 @@ int main(int argc, char *argv[])
 
 	if (vm.count("help") || vm.size() == 0)
 	{
-		usage();
+		std::cerr <<  desc <<  std::endl;
 		return 1;
 	}
 	if (vm.count("version"))
