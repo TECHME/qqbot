@@ -25,7 +25,7 @@ extern "C" {
 #include <lwqq/msg.h>
 };
 
-#define LWQQ_CLI_VERSION "0.0.1"
+#define QQBOT_VERSION "0.0.1"
 
 static int help_f(int argc, char **argv);
 static int quit_f(int argc, char **argv);
@@ -406,8 +406,7 @@ int main(int argc, char *argv[])
 	}
 	if (vm.count("version"))
 	{
-		printf("lwqq-cli version %s, Copyright (c) 2012 "
-		"mathslinux\n", LWQQ_CLI_VERSION);
+		printf("qqbot version %s \n", QQBOT_VERSION);
 	}
 
 	if (vm.count("config"))
