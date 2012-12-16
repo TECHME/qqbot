@@ -1,0 +1,10 @@
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+.*
+!.gitignore
+
+

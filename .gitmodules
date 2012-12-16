@@ -1,0 +1,3 @@
+[submodule "lwqq"]
+	path = lwqq
+	url = git@github.com:microcai/lwqq.git
