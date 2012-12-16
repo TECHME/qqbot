@@ -8,14 +8,18 @@
  * 
  */
 
+
+#include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
+namespace fs = boost::filesystem;
+
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
-#include <libgen.h>
-#include <pthread.h>
+
 extern "C" {
 #include <lwqq/login.h>
 #include <lwqq/logger.h>
@@ -44,7 +48,7 @@ static LwqqClient *lc = NULL;
 static char vc_image[128];
 static char vc_file[128];
 
-static char *progname;
+static std::string progname;
 
 static CmdInfo cmdtab[] = {
     {"help", "h", help_f},
@@ -146,7 +150,7 @@ static char *get_prompt(void)
 	static char	prompt[256];
 
 	if (!prompt[0])
-		snprintf(prompt, sizeof(prompt), "%s> ", progname);
+		snprintf(prompt, sizeof(prompt), "%s> ", progname.c_str());
 	return prompt;
 }
 
@@ -287,7 +291,7 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
     s_free(recvmsg);
 }
 
-static void *recvmsg_thread(void *list)
+static void recvmsg_thread(LwqqRecvMsgList *list)
 {
     LwqqRecvMsgList *l = (LwqqRecvMsgList *)list;
 
@@ -309,17 +313,13 @@ static void *recvmsg_thread(void *list)
         pthread_mutex_unlock(&l->mutex);
         handle_new_msg(recvmsg);
     }
-
-    pthread_exit(NULL);
 }
 
-static void *info_thread(void *lc)
+static void info_thread(LwqqClient *lc)
 {
     LwqqErrorCode err;
-    lwqq_info_get_friends_info((LwqqClient*)lc, &err);
+    lwqq_info_get_friends_info(lc, &err);
 //    lwqq_info_get_all_friend_qqnumbers(lc, &err);
-
-    pthread_exit(NULL);
 }
 
 static char **breakline(char *input, int *count)
@@ -401,15 +401,14 @@ int main(int argc, char *argv[])
     char *qqnumber = NULL, *password = NULL;
     LwqqErrorCode err;
     int i, c, e = 0;
-    pthread_t tid[2];
-    pthread_attr_t attr[2];
     
     if (argc == 1) {
         usage();
         exit(1);
     }
 
-    progname = basename(argv[0]);
+    progname = fs::basename(argv[0]);
+    
 
     const struct option long_options[] = {
         { "version", 0, 0, 'v' },
@@ -464,17 +463,10 @@ int main(int argc, char *argv[])
 
     lwqq_log(LOG_NOTICE, "Login successfully\n");
 
-    /* Initialize thread */
-    for (i = 0; i < 2; ++i) {
-        pthread_attr_init(&attr[i]);
-        pthread_attr_setdetachstate(&attr[i], PTHREAD_CREATE_DETACHED);
-    }
-
     /* Create a thread to receive message */
-    pthread_create(&tid[0], &attr[0], recvmsg_thread, lc->msg_list);
-
+    boost::thread(boost::bind(&recvmsg_thread, lc->msg_list));
     /* Create a thread to update friend info */
-    pthread_create(&tid[1], &attr[1], info_thread, lc);
+    boost::thread(boost::bind(&info_thread, lc));
 
     /* Enter command loop  */
     command_loop();
