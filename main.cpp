@@ -5,7 +5,7 @@
  * 
  */
 
-
+#include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -40,7 +40,7 @@ typedef struct CmdInfo {
 	cfunc_t		cfunc;
 } CmdInfo;
 
-static LwqqClient *lc = NULL;
+static boost::shared_ptr<LwqqClient> lc;
 
 static char vc_image[128];
 static char vc_file[128];
@@ -137,7 +137,7 @@ static int send_f(int argc, char **argv)
         return 0;
     }
     
-    lwqq_msg_send2(lc, argv[1], argv[2]);
+    lwqq_msg_send2(lc.get(), argv[1], argv[2]);
     
     return 0;
 }
@@ -177,7 +177,7 @@ static LwqqErrorCode cli_login()
 {
     LwqqErrorCode err;
 
-    lwqq_login(lc, &err);
+    lwqq_login(lc.get(), &err);
     if (err == LWQQ_EC_LOGIN_NEED_VC) {
         snprintf(vc_image, sizeof(vc_image), "/tmp/lwqq_%s.jpeg", lc->username);
         snprintf(vc_file, sizeof(vc_file), "/tmp/lwqq_%s.txt", lc->username);
@@ -199,7 +199,7 @@ static LwqqErrorCode cli_login()
             goto failed;
         }
         lwqq_log(LOG_NOTICE, "Get verify code: %s\n", lc->vc->str);
-        lwqq_login(lc, &err);
+        lwqq_login(lc.get(), &err);
     } else if (err != LWQQ_EC_OK) {
         goto failed;
     }
@@ -225,8 +225,7 @@ static void cli_logout(LwqqClient *lc)
 void signal_handler(int signum)
 {
 	if (signum == SIGINT) {
-        cli_logout(lc);
-        lwqq_client_free(lc);
+        cli_logout(lc.get());
         exit(0);
 	}
 }
@@ -273,8 +272,9 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
     s_free(recvmsg);
 }
 
-static void recvmsg_thread(LwqqRecvMsgList *list)
+static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
 {
+	LwqqRecvMsgList *list = lc->msg_list;
     /* Poll to receive message */
     list->poll_msg(list);
 
@@ -295,10 +295,10 @@ static void recvmsg_thread(LwqqRecvMsgList *list)
     }
 }
 
-static void info_thread(LwqqClient *lc)
+static void info_thread(boost::shared_ptr<LwqqClient> lc)
 {
     LwqqErrorCode err;
-    lwqq_info_get_friends_info(lc, &err);
+    lwqq_info_get_friends_info(lc.get(), &err);
 //    lwqq_info_get_all_friend_qqnumbers(lc, &err);
 }
 
@@ -417,7 +417,7 @@ int main(int argc, char *argv[])
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
     signal(SIGINT, signal_handler);
 
-    lc = lwqq_client_new(qqnumber.c_str(), password.c_str());
+    lc.reset( lwqq_client_new(qqnumber.c_str(), password.c_str()), lwqq_client_free );
     if (!lc) {
         lwqq_log(LOG_NOTICE, "Create lwqq client failed\n");
         return -1;
@@ -427,14 +427,13 @@ int main(int argc, char *argv[])
     err = cli_login();
     if (err != LWQQ_EC_OK) {
         lwqq_log(LOG_ERROR, "Login error, exit\n");
-        lwqq_client_free(lc);
         return -1;
     }
 
     lwqq_log(LOG_NOTICE, "Login successfully\n");
 
     /* Create a thread to receive message */
-    boost::thread(boost::bind(&recvmsg_thread, lc->msg_list));
+    boost::thread(boost::bind(&recvmsg_thread, lc));
     /* Create a thread to update friend info */
     boost::thread(boost::bind(&info_thread, lc));
 
@@ -442,7 +441,6 @@ int main(int argc, char *argv[])
     command_loop();
     
     /* Logout */
-    cli_logout(lc);
-    lwqq_client_free(lc);
+    cli_logout(lc.get());
     return 0;
 }
