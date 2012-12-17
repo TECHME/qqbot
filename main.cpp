@@ -152,7 +152,7 @@ static int send_f(int argc, char **argv)
         return 0;
     }
     
-    lwqq_msg_send2(lc.get(), argv[1], argv[2]);
+    //lwqq_msg_send2(lc.get(), argv[1], argv[2]);
     
     return 0;
 }
@@ -192,7 +192,7 @@ static LwqqErrorCode cli_login()
 {
     LwqqErrorCode err;
 
-    lwqq_login(lc.get(), &err);
+    lwqq_login(lc.get(),LWQQ_STATUS_ONLINE, &err);
     if (err == LWQQ_EC_LOGIN_NEED_VC) {
         snprintf(vc_image, sizeof(vc_image), "/tmp/lwqq_%s.jpeg", lc->username);
         snprintf(vc_file, sizeof(vc_file), "/tmp/lwqq_%s.txt", lc->username);
@@ -214,7 +214,7 @@ static LwqqErrorCode cli_login()
             goto failed;
         }
         lwqq_log(LOG_NOTICE, "Get verify code: %s\n", lc->vc->str);
-        lwqq_login(lc.get(), &err);
+        lwqq_login(lc.get(),LWQQ_STATUS_ONLINE, &err);
     } else if (err != LWQQ_EC_OK) {
         goto failed;
     }
@@ -268,18 +268,24 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	std::string buf;
 
 	TAILQ_FOREACH(c, &mmsg->content, entries) {
-		if (c->type == LWQQ_CONTENT_STRING) {
+		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
 			buf += c->data.str;
         } else {
 			printf ("Receive face msg: %d\n", c->data.face);
 		}
 	}
 	//log to disk file
-	
 	//get gid
-	const LwqqGroup* group =  getgroupbygid(lc, mmsg->from);
-
-	printf("Receive message: (%s) %s , %s\n",group->name, mmsg->to, buf.c_str());
+	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
+	if (group){
+		const char * nick = mmsg->group.send;
+		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
+		if (by )
+			nick = by->nick;
+		printf("Receive message: (%s) (%s), %s\n", group->name, nick, buf.c_str());
+	}else{
+		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
+	}	
 }
 
 static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
@@ -292,7 +298,7 @@ static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
         LwqqMsgContent *c;
         LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
         TAILQ_FOREACH(c, &mmsg->content, entries) {
-            if (c->type == LWQQ_CONTENT_STRING) {
+            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
                 strcat(buf, c->data.str);
             } else {
                 printf ("Receive face msg: %d\n", c->data.face);
@@ -306,7 +312,7 @@ static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
 		log_message(lc, mmsg);
 
 		TAILQ_FOREACH(c, &mmsg->content, entries) {
-            if (c->type == LWQQ_CONTENT_STRING) {
+            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
                 strcat(buf, c->data.str);
             } else {
                 printf ("Receive face msg: %d\n", c->data.face);
@@ -336,14 +342,14 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
     while (1) {
         LwqqRecvMsg *recvmsg;
         pthread_mutex_lock(&list->mutex);
-        if (SIMPLEQ_EMPTY(&list->head)) {
+        if (TAILQ_EMPTY(&list->head)) {
             /* No message now, wait 100ms */
             pthread_mutex_unlock(&list->mutex);
             boost::this_thread::sleep(boost::posix_time::milliseconds(1));
             continue;
         }
-        recvmsg = SIMPLEQ_FIRST(&list->head);
-        SIMPLEQ_REMOVE_HEAD(&list->head, entries);
+        recvmsg =TAILQ_FIRST(&list->head);
+        TAILQ_REMOVE_HEAD(&list->head, entries);
         pthread_mutex_unlock(&list->mutex);
         handle_new_msg(lc.get(), recvmsg);
     }
@@ -351,11 +357,14 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
 
 static void info_thread(boost::shared_ptr<LwqqClient> lc)
 {
-    LwqqErrorCode err;
-    lwqq_info_get_friends_info(lc.get(), &err);
-    sleep(1);
-    lwqq_info_get_group_name_list(lc.get(), &err);
-//    lwqq_info_get_all_friend_qqnumbers(lc, &err);
+	while ( ! boost::this_thread::interruption_requested()){
+		LwqqErrorCode err;
+		lwqq_info_get_friends_info(lc.get(), &err);
+		lwqq_info_get_online_buddies(lc.get(), &err);
+		lwqq_info_get_group_name_list(lc.get(), &err);
+		lwqq_info_get_discu_name_list(lc.get());
+		boost::this_thread::sleep(boost::posix_time::seconds(30));
+	}
 }
 
 static char **breakline(char *input, int *count)
