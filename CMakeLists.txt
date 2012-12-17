@@ -27,5 +27,9 @@ add_executable(qqbot main.cpp)
 target_link_libraries(qqbot liblwqq)
 target_link_libraries(qqbot ${Boost_LIBRARIES})
 
+if(WIN32)
+	target_link_libraries(qqbot win32/libpthreadGC2.a)
+endif()
+
 install(TARGETS qqbot RUNTIME DESTINATION bin)
 
