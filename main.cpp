@@ -46,6 +46,7 @@ static char vc_image[128];
 static char vc_file[128];
 
 static std::string progname;
+static std::string logdir;
 
 static CmdInfo cmdtab[] = {
     {"help", "h", help_f},
@@ -230,6 +231,23 @@ void signal_handler(int signum)
 	}
 }
 
+//TODO
+//将聊天信息写入日志文件！
+static void log_message(LwqqMsgMessage *mmsg)
+{
+	LwqqMsgContent *c;
+	std::string buf;
+
+	TAILQ_FOREACH(c, &mmsg->content, entries) {
+		if (c->type == LWQQ_CONTENT_STRING) {
+			buf += c->data.str;
+        } else {
+			printf ("Receive face msg: %d\n", c->data.face);
+		}
+	}
+	printf("Receive message: %s\n", buf.c_str());
+}
+
 static void handle_new_msg(LwqqRecvMsg *recvmsg)
 {
     LwqqMsg *msg = recvmsg->msg;
@@ -251,7 +269,9 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
         LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
         char buf[1024] = {0};
         LwqqMsgContent *c;
-        TAILQ_FOREACH(c, &mmsg->content, entries) {
+		log_message(mmsg);
+
+		TAILQ_FOREACH(c, &mmsg->content, entries) {
             if (c->type == LWQQ_CONTENT_STRING) {
                 strcat(buf, c->data.str);
             } else {
@@ -410,6 +430,7 @@ int main(int argc, char *argv[])
 		( "help,h", "produce help message" )
         ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
 		( "pwd,p", po::value<std::string>(&password), "password" )
+		( "logdir", po::value<std::string>(&logdir), "password" )
 		;
 
 	po::variables_map vm;
@@ -429,6 +450,11 @@ int main(int argc, char *argv[])
 	if (vm.count("version"))
 	{
 		printf("qqbot version %s \n", QQBOT_VERSION);
+	}
+	
+	if (!logdir.empty()){
+		if (!fs::exists(logdir))
+			fs::create_directory(logdir);
 	}
 
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
