@@ -376,6 +376,24 @@ static void command_loop()
     }
 }
 
+fs::path configfilepath()
+{
+	if ( fs::exists(fs::path(progname) / "qqbotrc"))
+		return fs::path(progname) / "qqbotrc";
+	if (getenv("USERPROFILE"))
+	{
+		if ( fs::exists(fs::path(getenv("USERPROFILE")) / ".qqbotrc"))
+			return fs::path(getenv("USERPROFILE")) / ".qqbotrc";
+	}
+	if (getenv("HOME")){
+		if ( fs::exists(fs::path(getenv("HOME")) / ".qqbotrc"))
+			return fs::path(getenv("HOME")) / ".qqbotrc";
+	}
+	if ( fs::exists("/etc/qqbotrc"))
+		return fs::path("/etc/qqbotrc");
+	throw "not configfileexit";
+}
+
 int main(int argc, char *argv[])
 {
     std::string qqnumber, password;
@@ -392,10 +410,14 @@ int main(int argc, char *argv[])
 		( "help,h", "produce help message" )
         ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
 		( "pwd,p", po::value<std::string>(&password), "password" )
-		( "config,c", po::value<std::string>(&cfgfile), "config file" )
 		;
 
 	po::variables_map vm;
+	try{
+		po::store(po::parse_config_file<char>(configfilepath().c_str(), desc), vm);
+	}catch (const char*){
+		std::cerr << "config file not found,  read from command line" <<  std::endl;
+	}
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
@@ -407,11 +429,6 @@ int main(int argc, char *argv[])
 	if (vm.count("version"))
 	{
 		printf("qqbot version %s \n", QQBOT_VERSION);
-	}
-
-	if (vm.count("config"))
-	{
-		//TODO
 	}
 
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
