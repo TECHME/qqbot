@@ -11,7 +11,7 @@ if(NOT EV_FOUND)
 	add_subdirectory(libev)
 endif()
 
-if(NOT ZLIB_FOUND)
+if(ZLIB_FOUND)
 	# USE BUNDLED ONE
 	add_subdirectory(zlib)
 endif()
