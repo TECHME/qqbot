@@ -11,7 +11,7 @@ if(NOT EVENT_FOUND)
 	add_subdirectory(libevent/)
 endif()
 
-if(ZLIB_FOUND)
+if(NOT ZLIB_FOUND)
 	# USE BUNDLED ONE
 	add_subdirectory(zlib)
 endif()
