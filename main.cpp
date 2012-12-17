@@ -305,7 +305,7 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
         if (SIMPLEQ_EMPTY(&list->head)) {
             /* No message now, wait 100ms */
             pthread_mutex_unlock(&list->mutex);
-            boost::this_thread::sleep(boost::posix_time::milliseconds(100));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
             continue;
         }
         recvmsg = SIMPLEQ_FIRST(&list->head);
