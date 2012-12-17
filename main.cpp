@@ -107,7 +107,21 @@ static int list_f(int argc, char **argv)
             }
             printf("Buddy info: %s\n", buf);
         }
-    } else {
+        LwqqGroup * group;
+        LIST_FOREACH(group, &lc->groups, entries) {
+            if (!group->gid) {
+                /* BUG */
+                return 0;
+            }
+            snprintf(buf, sizeof(buf), "uin:%s, ", group->gid);
+            if (group->name) {
+                strcat(buf, "nick:");
+                strcat(buf, group->name);
+                strcat(buf, ", ");
+            }
+            printf("Group info: %s\n", buf);
+        }
+	} else {
         /* Show buddies whose uin is argv[1] */
         LwqqBuddy *buddy;
         LIST_FOREACH(buddy, &lc->friends, entries) {
@@ -231,9 +245,24 @@ void signal_handler(int signum)
 	}
 }
 
+const LwqqGroup * getgroupbygid(LwqqClient * lc, const char *gid)
+{
+	LwqqGroup * group;
+	LIST_FOREACH(group, &lc->groups, entries) {
+		if (!group->gid) {
+			/* BUG */
+			return 0;
+		}
+		if (strcasecmp(group->gid, gid)==0){
+			return group;
+		}
+	}
+	return 0;
+}
+
 //TODO
 //将聊天信息写入日志文件！
-static void log_message(LwqqMsgMessage *mmsg)
+static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 {
 	LwqqMsgContent *c;
 	std::string buf;
@@ -245,13 +274,15 @@ static void log_message(LwqqMsgMessage *mmsg)
 			printf ("Receive face msg: %d\n", c->data.face);
 		}
 	}
-	printf("Receive message: %s , %s\n", mmsg->from, buf.c_str());
-
 	//log to disk file
 	
+	//get gid
+	const LwqqGroup* group =  getgroupbygid(lc, mmsg->from);
+
+	printf("Receive message: (%s) %s , %s\n",group->name, mmsg->to, buf.c_str());
 }
 
-static void handle_new_msg(LwqqRecvMsg *recvmsg)
+static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
 {
     LwqqMsg *msg = recvmsg->msg;
 
@@ -267,12 +298,12 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
                 printf ("Receive face msg: %d\n", c->data.face);
             }
         }
-        printf("Receive message: %s\n", buf);
+//         printf("Receive message: %s\n", buf);
     } else if (msg->type == LWQQ_MT_GROUP_MSG) {
         LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
         char buf[1024] = {0};
         LwqqMsgContent *c;
-		log_message(mmsg);
+		log_message(lc, mmsg);
 
 		TAILQ_FOREACH(c, &mmsg->content, entries) {
             if (c->type == LWQQ_CONTENT_STRING) {
@@ -281,7 +312,7 @@ static void handle_new_msg(LwqqRecvMsg *recvmsg)
                 printf ("Receive face msg: %d\n", c->data.face);
             }
         }
-        printf("Receive message: %s\n", buf);
+//         printf("Receive message: %s\n", buf);
     } else if (msg->type == LWQQ_MT_STATUS_CHANGE) {
         LwqqMsgStatusChange *status = (LwqqMsgStatusChange*)msg->opaque;
         printf("Receive status change: %s - > %s\n", 
@@ -314,7 +345,7 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
         recvmsg = SIMPLEQ_FIRST(&list->head);
         SIMPLEQ_REMOVE_HEAD(&list->head, entries);
         pthread_mutex_unlock(&list->mutex);
-        handle_new_msg(recvmsg);
+        handle_new_msg(lc.get(), recvmsg);
     }
 }
 
@@ -322,6 +353,8 @@ static void info_thread(boost::shared_ptr<LwqqClient> lc)
 {
     LwqqErrorCode err;
     lwqq_info_get_friends_info(lc.get(), &err);
+    sleep(1);
+    lwqq_info_get_group_name_list(lc.get(), &err);
 //    lwqq_info_get_all_friend_qqnumbers(lc, &err);
 }
 
