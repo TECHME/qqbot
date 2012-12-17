@@ -28,6 +28,7 @@ target_link_libraries(qqbot liblwqq)
 target_link_libraries(qqbot ${Boost_LIBRARIES})
 
 if(WIN32)
+	include_directories(win32)
 	target_link_libraries(qqbot win32/libpthreadGC2.a)
 endif()
 
