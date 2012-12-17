@@ -3,12 +3,12 @@ project(qqbot)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
-find_package(EV)
+find_package(EVENT)
 find_package(ZLIB)
 
-if(NOT EV_FOUND)
+if(NOT EVENT_FOUND)
 	# USE BUNDLED ONE
-	add_subdirectory(libev)
+	add_subdirectory(libevent/)
 endif()
 
 if(ZLIB_FOUND)
