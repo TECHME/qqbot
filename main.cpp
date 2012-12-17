@@ -245,7 +245,10 @@ static void log_message(LwqqMsgMessage *mmsg)
 			printf ("Receive face msg: %d\n", c->data.face);
 		}
 	}
-	printf("Receive message: %s\n", buf.c_str());
+	printf("Receive message: %s , %s\n", mmsg->from, buf.c_str());
+
+	//log to disk file
+	
 }
 
 static void handle_new_msg(LwqqRecvMsg *recvmsg)
