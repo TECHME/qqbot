@@ -7,8 +7,12 @@ find_package(EVENT)
 find_package(ZLIB)
 
 if(NOT EVENT_FOUND)
+	if(NOT WIN32)
+		message(FATAL_ERROR need libevent!)
+	else()
 	# USE BUNDLED ONE
-	add_subdirectory(libevent/)
+		add_subdirectory(libevent/)
+	endif()
 endif()
 
 if(NOT ZLIB_FOUND)
