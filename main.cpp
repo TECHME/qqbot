@@ -357,10 +357,8 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		if (by)
 			nick = by->nick;
 		
-		if (logfilemap[group->account]->is_open()){
+		if (logfilemap.find(group->account) != logfilemap.end() && logfilemap[group->account]->is_open()){
 			// log to logfile
-
-			
 			std::string messagetime = std::ctime(&mmsg->time);
 			*messagetime.rbegin()=0;
 			
