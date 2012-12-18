@@ -519,6 +519,8 @@ int main(int argc, char *argv[])
 
     LwqqErrorCode err;
     int i, c, e = 0;
+    
+    bool isdaemon=false;
 
     progname = fs::basename(argv[0]);
 
@@ -529,6 +531,7 @@ int main(int argc, char *argv[])
         ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
 		( "pwd,p", po::value<std::string>(&password), "password" )
 		( "logdir", po::value<std::string>(&logdir), "dir for logfile" )
+		( "daemon,d", po::value<bool>(&isdaemon), "go to background" )
 		;
 
 	po::variables_map vm;
@@ -573,7 +576,8 @@ int main(int argc, char *argv[])
     lwqq_log(LOG_NOTICE, "Login successfully\n");
 
     /* Enter command loop  */
-    boost::thread(boost::bind(&command_loop));
+	if (!isdaemon)
+		boost::thread(boost::bind(&command_loop));
 
     /* update group info */
     lwqq_info_get_friends_info(lc.get(), &err);
@@ -581,6 +585,8 @@ int main(int argc, char *argv[])
 	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
 
 	/* receive message */
+    if (isdaemon)
+		daemon(0, 0);
     recvmsg_thread(lc);
     return 0;
 }
