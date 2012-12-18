@@ -348,13 +348,14 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	}
 	//log to disk file
 	//get gid
+	boost::mutex::scoped_lock l(logfilemutex);
+
 	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
 	if (group){
 		const char * nick = mmsg->group.send;
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
 		if (by)
 			nick = by->nick;
-		boost::mutex::scoped_lock l(logfilemutex);
 		
 		if (logfilemap[group->account]->is_open()){
 			// log to logfile
