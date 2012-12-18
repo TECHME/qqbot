@@ -13,6 +13,7 @@ namespace fs = boost::filesystem;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 #include <boost/make_shared.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <fstream>
 #include <string.h>
@@ -363,10 +364,10 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 			*messagetime.rbegin()=0;
 			
 			if (!buf.empty()){
-				buf.replace(buf.begin(), buf.end(), "<", "&lt;");
-				buf.replace(buf.begin(), buf.end(), ">", "&gt;");
-				buf.replace(buf.begin(), buf.end(), "&", "&amp;");
-				buf.replace(buf.begin(), buf.end(), " ", "&nbsp;");
+				boost::replace_all(buf, "<", "&lt;");
+				boost::replace_all(buf, ">", "&gt;");
+				boost::replace_all(buf, "&", "&amp;");
+				boost::replace_all(buf, " ", "&nbsp;");
 			}
 			*(std::ostream*)(logfilemap[group->account].get()) <<  "<p>" << messagetime <<  " " << nick <<  "说：" <<  buf <<  "</p>" << std::endl;
 						
