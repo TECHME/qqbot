@@ -472,6 +472,8 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 
 		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
 		
+		bool havehead =  fs::exists(logfilepath);
+
 		std::ofstream * newlogfile = new std::ofstream(logfilepath.c_str(),
 						fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out);
 
@@ -480,6 +482,13 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 				group->account, boost::shared_ptr<std::ofstream>(newlogfile)
 			)
 		);
+
+		if (!havehead){
+			//write html header
+			
+			*newlogfile << "<head><meta http-equiv=\"Content-Type\" content=\"text/plain; charset=UTF-8\">" <<  std::endl;
+	
+		}
 	}
 }
 
