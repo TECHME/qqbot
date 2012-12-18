@@ -362,11 +362,12 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 			std::string messagetime = std::ctime(&mmsg->time);
 			*messagetime.rbegin()=0;
 			
-			buf.replace(buf.begin(), buf.end(), "<", "&lt;");
-			buf.replace(buf.begin(), buf.end(), ">", "&gt;");
-			buf.replace(buf.begin(), buf.end(), "&", "&amp;");
-			buf.replace(buf.begin(), buf.end(), " ", "&nbsp;");
-
+			if (!buf.empty()){
+				buf.replace(buf.begin(), buf.end(), "<", "&lt;");
+				buf.replace(buf.begin(), buf.end(), ">", "&gt;");
+				buf.replace(buf.begin(), buf.end(), "&", "&amp;");
+				buf.replace(buf.begin(), buf.end(), " ", "&nbsp;");
+			}
 			*(std::ostream*)(logfilemap[group->account].get()) <<  "<p>" << messagetime <<  " " << nick <<  "说：" <<  buf <<  "</p>" << std::endl;
 						
 		}else
