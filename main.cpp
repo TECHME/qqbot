@@ -363,7 +363,7 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 			std::string messagetime = std::ctime(&mmsg->time);
 			*messagetime.rbegin()=0;
 
-			*(std::ostream*)(logfilemap[group->account].get()) << messagetime <<  " " << nick <<  "说：" <<  buf <<  std::endl;
+			*(std::ostream*)(logfilemap[group->account].get()) <<  "<p>" << messagetime <<  " " << nick <<  "说：" <<  buf <<  "</p>" << std::endl;
 		}else
 			printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
 	}else{
@@ -461,7 +461,7 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 			boost::gregorian::to_iso_string(boost::gregorian::day_clock::local_day())
 		);
 
-		logfilepath += ".txt";
+		logfilepath =  fs::path(logfilepath.string() + ".html");
 
 		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
 		
