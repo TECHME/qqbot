@@ -269,7 +269,7 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
 		if (by)
 			nick = by->nick;
-		printf("Receive message: (%s) (%s), %s\n", group->name, nick, buf.c_str());
+		printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
 	}else{
 		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
 	}	
@@ -345,16 +345,18 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
 static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 {
 	LwqqGroup * group = (LwqqGroup*)data;
-	LwqqSimpleBuddy *body;
 
-	lwqq_log(LOG_DEBUG, "got group info %s\n", group->name);
-	
-	LIST_FOREACH(body,& group->members, entries) {
-		if (!body->uin) {
-			/* BUG */
-			continue ;
+	// create log file
+	if (!logdir.empty()){//yes my lord, I will log messages
+		if (!fs::exists(fs::path(logdir) / group->account)){
+			if (!fs::create_directory(fs::path(logdir) / group->account)){
+				logdir.clear();
+				return ;
+			}
 		}
-		lwqq_log(LOG_ERROR, "get group %s member %s\n", group->name, body->nick);
+		if (!fs::exists(fs::path(logdir) / group->name)){
+			fs::create_symlink(fs::path(logdir) / group->account, fs::path(logdir) / group->name);			
+		}
 	}
 }
 
@@ -371,8 +373,8 @@ static void get_group_detail_info(LwqqAsyncEvent* event,void* data)
 		}
 		lwqq_log(LOG_DEBUG, "get group info %s\n", group->name);
 		
-		lwqq_async_add_event_listener(lwqq_info_get_group_detail_info(lc,group, &err), 
-									got_group_detail_info, group);
+		lwqq_async_add_event_listener(lwqq_info_get_qqnumber(lc, 1, group),got_group_detail_info, group );
+		lwqq_info_get_group_detail_info(lc,group, &err);
 	}
 }
 
@@ -531,6 +533,7 @@ int main(int argc, char *argv[])
     /* Create a thread to receive message */
     boost::thread(boost::bind(&recvmsg_thread, lc));
     /* update group info */
+    lwqq_info_get_friends_info(lc.get(), &err);
     LwqqAsyncEvent* getgroups = lwqq_info_get_group_name_list(lc.get(), &err);
 	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
 	
