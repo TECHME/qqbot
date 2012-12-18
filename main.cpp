@@ -556,10 +556,12 @@ int main(int argc, char *argv[])
 		if (!fs::exists(logdir))
 			fs::create_directory(logdir);
 	}
-
+	
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
     signal(SIGINT, signal_handler);
-
+    if (isdaemon)
+		daemon(0, 0);
+		
     lc.reset( lwqq_client_new(qqnumber.c_str(), password.c_str()), lwqq_client_free );
     if (!lc) {
         lwqq_log(LOG_NOTICE, "Create lwqq client failed\n");
@@ -585,8 +587,6 @@ int main(int argc, char *argv[])
 	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
 
 	/* receive message */
-    if (isdaemon)
-		daemon(0, 0);
     recvmsg_thread(lc);
     return 0;
 }
