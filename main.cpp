@@ -19,6 +19,7 @@ namespace po = boost::program_options;
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
+#include <time.h>
 
 extern "C" {
 #include <lwqq/login.h>
@@ -252,165 +253,6 @@ void signal_handler(int signum)
 	}
 }
 
-//TODO
-//将聊天信息写入日志文件！
-static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
-{
-	LwqqMsgContent *c;
-	std::string buf;
-	LwqqErrorCode err;
-
-	TAILQ_FOREACH(c, &mmsg->content, entries) {
-		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
-			buf += c->data.str;
-        } else {
-			printf ("Receive face msg: %d\n", c->data.face);
-		}
-	}
-	//log to disk file
-	//get gid
-	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
-	if (group){
-		const char * nick = mmsg->group.send;
-		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-		if (by)
-			nick = by->nick;
-		boost::mutex::scoped_lock l(logfilemutex);
-		
-		if (logfilemap[group->account]->is_open()){
-			// log to logfile
-			*(std::ostream*)(logfilemap[group->account].get()) << nick <<  "说：" <<  buf <<  std::endl;
-		}else
-			printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
-	}else{
-		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
-	}	
-}
-
-static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
-{
-    LwqqMsg *msg = recvmsg->msg;
-
-    printf("Receive message type: %d\n", msg->type);
-    if (msg->type == LWQQ_MT_BUDDY_MSG) {
-        char buf[1024] = {0};
-        LwqqMsgContent *c;
-        LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
-        TAILQ_FOREACH(c, &mmsg->content, entries) {
-            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
-                strcat(buf, c->data.str);
-            } else {
-                printf ("Receive face msg: %d\n", c->data.face);
-            }
-        }
-//         printf("Receive message: %s\n", buf);
-    } else if (msg->type == LWQQ_MT_GROUP_MSG) {
-        LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
-        char buf[1024] = {0};
-        LwqqMsgContent *c;
-		log_message(lc, mmsg);
-
-		TAILQ_FOREACH(c, &mmsg->content, entries) {
-            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
-                strcat(buf, c->data.str);
-            } else {
-                printf ("Receive face msg: %d\n", c->data.face);
-            }
-        }
-//         printf("Receive message: %s\n", buf);
-    } else if (msg->type == LWQQ_MT_STATUS_CHANGE) {
-        LwqqMsgStatusChange *status = (LwqqMsgStatusChange*)msg->opaque;
-        printf("Receive status change: %s - > %s\n", 
-               status->who,
-               status->status);
-    } else {
-        printf("unknow message\n");
-    }
-    
-    lwqq_msg_free(recvmsg->msg);
-    s_free(recvmsg);
-}
-
-static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
-{
-	LwqqRecvMsgList *list = lc->msg_list;
-    /* Poll to receive message */
-    list->poll_msg(list);
-
-    /* Need to wrap those code so look like more nice */
-    while (1) {
-        LwqqRecvMsg *recvmsg;
-        pthread_mutex_lock(&list->mutex);
-        if (TAILQ_EMPTY(&list->head)) {
-            /* No message now, wait 100ms */
-            pthread_mutex_unlock(&list->mutex);
-            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-            continue;
-        }
-        recvmsg =TAILQ_FIRST(&list->head);
-        TAILQ_REMOVE_HEAD(&list->head, entries);
-        pthread_mutex_unlock(&list->mutex);
-        handle_new_msg(lc.get(), recvmsg);
-    }
-}
-
-static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
-{
-	LwqqGroup * group = (LwqqGroup*)data;
-
-	boost::mutex::scoped_lock l(logfilemutex);
-	// create log file
-	if (!logdir.empty()){//yes my lord, I will log messages
-		if (!fs::exists(fs::path(logdir) / group->account)){
-			if (!fs::create_directory(fs::path(logdir) / group->account)){
-				logdir.clear();
-				return ;
-			}
-		}
-		if (!fs::exists(fs::path(logdir) / group->name)){
-			fs::create_symlink(group->account, fs::path(logdir) / group->name);			
-		}
-		
-		
-		fs::path logfilepath(
-			fs::path(logdir) /
-			group->name /
-			boost::gregorian::to_iso_string(boost::gregorian::day_clock::local_day())
-		);
-
-		logfilepath += ".txt";
-
-		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
-		
-		logfilemap.insert(
-			std::make_pair(
-				group->account,
-				boost::make_shared<std::ofstream>(
-					logfilepath.c_str(), fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out
-				)
-			)
-		);
-	}
-}
-
-static void get_group_detail_info(LwqqAsyncEvent* event,void* data)
-{
-	LwqqErrorCode err;
-	LwqqGroup * group;
-	LwqqClient * lc = (LwqqClient*)data;
-	
-	LIST_FOREACH(group, &lc->groups, entries) {
-		if (!group->gid) {
-			/* BUG */
-			continue ;
-		}
-		lwqq_log(LOG_DEBUG, "get group info %s\n", group->name);
-		
-		lwqq_async_add_event_listener(lwqq_info_get_qqnumber(lc, 1, group),got_group_detail_info, group );
-		lwqq_info_get_group_detail_info(lc,group, &err);
-	}
-}
-
 static char **breakline(char *input, int *count)
 {
     int c = 0;
@@ -483,6 +325,173 @@ static void command_loop()
             free(v);
         }
     }
+        
+    /* Logout */
+    cli_logout(lc.get());
+    exit(0);
+}
+
+//TODO
+//将聊天信息写入日志文件！
+static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
+{
+	LwqqMsgContent *c;
+	std::string buf;
+	LwqqErrorCode err;
+
+	TAILQ_FOREACH(c, &mmsg->content, entries) {
+		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
+			buf += c->data.str;
+        } else {
+			printf ("Receive face msg: %d\n", c->data.face);
+		}
+	}
+	//log to disk file
+	//get gid
+	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
+	if (group){
+		const char * nick = mmsg->group.send;
+		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
+		if (by)
+			nick = by->nick;
+		boost::mutex::scoped_lock l(logfilemutex);
+		
+		if (logfilemap[group->account]->is_open()){
+			// log to logfile
+
+			
+			std::string messagetime = std::ctime(&mmsg->time);
+			*messagetime.rbegin()=0;
+
+			*(std::ostream*)(logfilemap[group->account].get()) << messagetime <<  " " << nick <<  "说：" <<  buf <<  std::endl;
+		}else
+			printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
+	}else{
+		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
+	}	
+}
+
+static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
+{
+    LwqqMsg *msg = recvmsg->msg;
+
+    printf("Receive message type: %d\n", msg->type);
+    if (msg->type == LWQQ_MT_BUDDY_MSG) {
+        char buf[1024] = {0};
+        LwqqMsgContent *c;
+        LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
+        TAILQ_FOREACH(c, &mmsg->content, entries) {
+            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
+                strcat(buf, c->data.str);
+            } else {
+                printf ("Receive face msg: %d\n", c->data.face);
+            }
+        }
+//         printf("Receive message: %s\n", buf);
+    } else if (msg->type == LWQQ_MT_GROUP_MSG) {
+        LwqqMsgMessage *mmsg =(LwqqMsgMessage *) msg->opaque;
+        char buf[1024] = {0};
+        LwqqMsgContent *c;
+		log_message(lc, mmsg);
+
+		TAILQ_FOREACH(c, &mmsg->content, entries) {
+            if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
+                strcat(buf, c->data.str);
+            } else {
+                printf ("Receive face msg: %d\n", c->data.face);
+            }
+        }
+//         printf("Receive message: %s\n", buf);
+    } else if (msg->type == LWQQ_MT_STATUS_CHANGE) {
+        LwqqMsgStatusChange *status = (LwqqMsgStatusChange*)msg->opaque;
+        printf("Receive status change: %s - > %s\n", 
+               status->who,
+               status->status);
+    } else {
+        printf("unknow message\n");
+    }
+    
+    lwqq_msg_free(recvmsg->msg);
+    s_free(recvmsg);
+}
+
+static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
+{
+	LwqqRecvMsgList *list = lc->msg_list;
+    /* Poll to receive message */
+    list->poll_msg(list);
+
+    /* Need to wrap those code so look like more nice */
+    while (1) {
+        LwqqRecvMsg *recvmsg;
+        pthread_mutex_lock(&list->mutex);
+        if (TAILQ_EMPTY(&list->head)) {
+            /* No message now, wait 100ms */
+            pthread_mutex_unlock(&list->mutex);
+            boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+            continue;
+        }
+        recvmsg =TAILQ_FIRST(&list->head);
+        TAILQ_REMOVE_HEAD(&list->head, entries);
+        pthread_mutex_unlock(&list->mutex);
+        handle_new_msg(lc.get(), recvmsg);
+    }
+}
+
+static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
+{
+	LwqqGroup * group = (LwqqGroup*)data;
+
+	boost::mutex::scoped_lock l(logfilemutex);
+	// create log file
+	if (!logdir.empty()){//yes my lord, I will log messages
+		if (!fs::exists(fs::path(logdir) / group->account)){
+			if (!fs::create_directory(fs::path(logdir) / group->account)){
+				logdir.clear();
+				return ;
+			}
+		}
+		if (!fs::exists(fs::path(logdir) / group->name)){
+			fs::create_symlink(group->account, fs::path(logdir) / group->name);			
+		}
+
+		fs::path logfilepath(
+			fs::path(logdir) /
+			group->name /
+			boost::gregorian::to_iso_string(boost::gregorian::day_clock::local_day())
+		);
+
+		logfilepath += ".txt";
+
+		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
+		
+		logfilemap.insert(
+			std::make_pair(
+				group->account,
+				boost::make_shared<std::ofstream>(
+					logfilepath.c_str(), fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out
+				)
+			)
+		);
+	}
+}
+
+static void get_group_detail_info(LwqqAsyncEvent* event,void* data)
+{
+	LwqqErrorCode err;
+	LwqqGroup * group;
+	LwqqClient * lc = (LwqqClient*)data;
+	
+	LIST_FOREACH(group, &lc->groups, entries) {
+		if (!group->gid) {
+			/* BUG */
+			continue ;
+		}
+		lwqq_log(LOG_DEBUG, "get group info %s\n", group->name);
+		
+		lwqq_async_add_event_listener(lwqq_info_get_qqnumber(lc, 1, group),got_group_detail_info, group );
+		lwqq_info_get_group_detail_info(lc,group, &err);
+	}
 }
 
 fs::path configfilepath()
@@ -563,17 +572,15 @@ int main(int argc, char *argv[])
 
     lwqq_log(LOG_NOTICE, "Login successfully\n");
 
-    /* Create a thread to receive message */
-    boost::thread(boost::bind(&recvmsg_thread, lc));
+    /* Enter command loop  */
+    boost::thread(boost::bind(&command_loop));
+
     /* update group info */
     lwqq_info_get_friends_info(lc.get(), &err);
     LwqqAsyncEvent* getgroups = lwqq_info_get_group_name_list(lc.get(), &err);
 	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
-	
-    /* Enter command loop  */
-    command_loop();
-    
-    /* Logout */
-    cli_logout(lc.get());
+
+	/* receive message */
+    recvmsg_thread(lc);
     return 0;
 }
