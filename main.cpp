@@ -438,7 +438,7 @@ static void command_loop()
         if (p != command && p[-1] == '\n') {
             p[-1] = '\0';
         }
-        
+
         v = breakline(command, &c);
         if (v) {
             ct = find_command(v[0]);
