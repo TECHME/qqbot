@@ -3,13 +3,6 @@ project(qqbot)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
-find_package(ZLIB)
-
-if(NOT ZLIB_FOUND)
-	# USE BUNDLED ONE
-	add_subdirectory(zlib)
-endif()
-
 add_subdirectory(lwqq)
 
 include_directories(lwqq/src/include/)
