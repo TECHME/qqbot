@@ -23,6 +23,7 @@ extern "C" {
 #include <lwqq/info.h>
 #include <lwqq/smemory.h>
 #include <lwqq/msg.h>
+#include <lwqq/async.h>
 };
 
 #define QQBOT_VERSION "0.0.1"
@@ -341,21 +342,37 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
     }
 }
 
-static void info_thread(boost::shared_ptr<LwqqClient> lc)
+static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
+{
+	LwqqGroup * group = (LwqqGroup*)data;
+	LwqqSimpleBuddy *body;
+
+	lwqq_log(LOG_DEBUG, "got group info %s\n", group->name);
+	
+	LIST_FOREACH(body,& group->members, entries) {
+		if (!body->uin) {
+			/* BUG */
+			continue ;
+		}
+		lwqq_log(LOG_ERROR, "get group %s member %s\n", group->name, body->nick);
+	}
+}
+
+static void get_group_detail_info(LwqqAsyncEvent* event,void* data)
 {
 	LwqqErrorCode err;
-	
-	lwqq_info_get_group_name_list(lc.get(), &err);
-	boost::this_thread::sleep(boost::posix_time::seconds(20));
-
 	LwqqGroup * group;
+	LwqqClient * lc = (LwqqClient*)data;
+	
 	LIST_FOREACH(group, &lc->groups, entries) {
 		if (!group->gid) {
 			/* BUG */
 			continue ;
 		}
-		lwqq_info_get_group_detail_info(lc.get(),group, &err);
-		boost::this_thread::sleep(boost::posix_time::seconds(3));
+		lwqq_log(LOG_DEBUG, "get group info %s\n", group->name);
+		
+		lwqq_async_add_event_listener(lwqq_info_get_group_detail_info(lc,group, &err), 
+									got_group_detail_info, group);
 	}
 }
 
@@ -513,9 +530,10 @@ int main(int argc, char *argv[])
 
     /* Create a thread to receive message */
     boost::thread(boost::bind(&recvmsg_thread, lc));
-    /* Create a thread to update friend info */
-    boost::thread(boost::bind(&info_thread, lc));
-
+    /* update group info */
+    LwqqAsyncEvent* getgroups = lwqq_info_get_group_name_list(lc.get(), &err);
+	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
+	
     /* Enter command loop  */
     command_loop();
     
