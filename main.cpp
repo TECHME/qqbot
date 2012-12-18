@@ -7,11 +7,14 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
+#include <boost/date_time.hpp>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
+#include <boost/make_shared.hpp>
 
+#include <fstream>
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -27,6 +30,9 @@ extern "C" {
 };
 
 #define QQBOT_VERSION "0.0.1"
+
+static boost::mutex												logfilemutex;
+static std::map<std::string, boost::shared_ptr<std::ofstream> >	logfilemap;
 
 static int help_f(int argc, char **argv);
 static int quit_f(int argc, char **argv);
@@ -269,7 +275,13 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
 		if (by)
 			nick = by->nick;
-		printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
+		boost::mutex::scoped_lock l(logfilemutex);
+		
+		if (logfilemap[group->account]->is_open()){
+			// log to logfile
+			*(std::ostream*)(logfilemap[group->account].get()) << nick <<  "说：" <<  buf <<  std::endl;
+		}else
+			printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
 	}else{
 		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
 	}	
@@ -346,6 +358,7 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 {
 	LwqqGroup * group = (LwqqGroup*)data;
 
+	boost::mutex::scoped_lock l(logfilemutex);
 	// create log file
 	if (!logdir.empty()){//yes my lord, I will log messages
 		if (!fs::exists(fs::path(logdir) / group->account)){
@@ -355,8 +368,13 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 			}
 		}
 		if (!fs::exists(fs::path(logdir) / group->name)){
-			fs::create_symlink(fs::path(logdir) / group->account, fs::path(logdir) / group->name);			
+			fs::create_symlink(group->account, fs::path(logdir) / group->name);			
 		}
+		
+		
+		fs::path logfilepath(fs::path(logdir) / group->name / boost::gregorian::to_iso_string(boost::gregorian::day_clock::local_day()));
+		
+		logfilemap.insert(std::make_pair(group->account, boost::make_shared<std::ofstream>(logfilepath.c_str())));
 	}
 }
 

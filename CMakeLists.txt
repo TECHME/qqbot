@@ -7,7 +7,7 @@ add_subdirectory(lwqq)
 
 include_directories(lwqq/src/include/)
 
-find_package(Boost 1.46 REQUIRED COMPONENTS thread filesystem program_options)
+find_package(Boost 1.46 REQUIRED COMPONENTS date_time thread filesystem program_options)
 
 add_executable(qqbot main.cpp)
 
