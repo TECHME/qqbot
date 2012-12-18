@@ -486,7 +486,7 @@ int main(int argc, char *argv[])
 		( "help,h", "produce help message" )
         ( "user,u", po::value<std::string>(&qqnumber), "QQ 号" )
 		( "pwd,p", po::value<std::string>(&password), "password" )
-		( "logdir", po::value<std::string>(&logdir), "password" )
+		( "logdir", po::value<std::string>(&logdir), "dir for logfile" )
 		;
 
 	po::variables_map vm;
