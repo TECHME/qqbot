@@ -245,27 +245,13 @@ void signal_handler(int signum)
 	}
 }
 
-const LwqqGroup * getgroupbygid(LwqqClient * lc, const char *gid)
-{
-	LwqqGroup * group;
-	LIST_FOREACH(group, &lc->groups, entries) {
-		if (!group->gid) {
-			/* BUG */
-			return 0;
-		}
-		if (strcasecmp(group->gid, gid)==0){
-			return group;
-		}
-	}
-	return 0;
-}
-
 //TODO
 //将聊天信息写入日志文件！
 static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 {
 	LwqqMsgContent *c;
 	std::string buf;
+	LwqqErrorCode err;
 
 	TAILQ_FOREACH(c, &mmsg->content, entries) {
 		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
@@ -280,7 +266,7 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	if (group){
 		const char * nick = mmsg->group.send;
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-		if (by )
+		if (by)
 			nick = by->nick;
 		printf("Receive message: (%s) (%s), %s\n", group->name, nick, buf.c_str());
 	}else{
@@ -357,13 +343,19 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
 
 static void info_thread(boost::shared_ptr<LwqqClient> lc)
 {
-	while ( ! boost::this_thread::interruption_requested()){
-		LwqqErrorCode err;
-		lwqq_info_get_friends_info(lc.get(), &err);
-		lwqq_info_get_online_buddies(lc.get(), &err);
-		lwqq_info_get_group_name_list(lc.get(), &err);
-		lwqq_info_get_discu_name_list(lc.get());
-		boost::this_thread::sleep(boost::posix_time::seconds(30));
+	LwqqErrorCode err;
+	
+	lwqq_info_get_group_name_list(lc.get(), &err);
+	boost::this_thread::sleep(boost::posix_time::seconds(20));
+
+	LwqqGroup * group;
+	LIST_FOREACH(group, &lc->groups, entries) {
+		if (!group->gid) {
+			/* BUG */
+			continue ;
+		}
+		lwqq_info_get_group_detail_info(lc.get(),group, &err);
+		boost::this_thread::sleep(boost::posix_time::seconds(3));
 	}
 }
 
@@ -479,18 +471,17 @@ int main(int argc, char *argv[])
 		;
 
 	po::variables_map vm;
-	try{
-		po::store(po::parse_config_file<char>(configfilepath().c_str(), desc), vm);
-	}catch (const char*){
-		std::cerr << "config file not found,  read from command line" <<  std::endl;
-	}
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	po::notify(vm);
 
-	if (vm.count("help") || vm.size() == 0)
+	if (vm.count("help"))
 	{
 		std::cerr <<  desc <<  std::endl;
 		return 1;
+	}
+	if (vm.size() ==0 ){
+		po::store(po::parse_config_file<char>(configfilepath().c_str(), desc), vm);
+		po::notify(vm);
 	}
 	if (vm.count("version"))
 	{
