@@ -470,12 +470,12 @@ static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 
 		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
 		
+		std::ofstream * newlogfile = new std::ofstream(logfilepath.c_str(),
+						fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out);
+
 		logfilemap.insert(
 			std::make_pair(
-				group->account,
-				boost::make_shared<std::ofstream>(
-					logfilepath.c_str(), fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out
-				)
+				group->account, boost::shared_ptr<std::ofstream>(newlogfile)
 			)
 		);
 	}
