@@ -2,9 +2,10 @@
 #ifndef _IRC_H
 #define _IRC_H
 
+#include <boost/function.hpp>
+
 #ifndef WIN32
 #include <sys/socket.h>
-//#include <sigc++/signal_system.h>
 #include <netdb.h>
 #else
 #include <WinSock.h>
@@ -13,14 +14,7 @@
 #include <string.h>
 #include <string>
 
-
-#ifdef SIGC_CXX_NAMESPACES
-using namespace SigC;
-#endif
-
 using namespace std;
-
-
 
 
 class Irc {
@@ -38,14 +32,14 @@ class Irc {
 			string param[15];
 			size_t pcount;
 		};
-        typedef void(*privmsg_cb)(const IrcMessage* pMsg);
+        typedef boost::function<void(const IrcMessage* pMsg)> privmsg_cb;
         privmsg_cb cb;
 
 	protected:
 		struct hostent *host;
-		void sendMessage(const string cmd, const char *param, ...) const ;
-		IrcMessage * parseMessage(const string msg)  ;
-		IrcMessage *waitForMessage(const string command);
+		void sendMessage(const string cmd, const char *param, ...) const;
+		IrcMessage * parseMessage(const string msg);
+		IrcMessage * waitForMessage(const string command);
 		void processMessage(IrcMessage *m);
 		/** finds CTCP data in msg
 		 * \param msg second parameter from a privmsg

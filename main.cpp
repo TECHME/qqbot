@@ -576,6 +576,7 @@ fs::path configfilepath()
 int main(int argc, char *argv[])
 {
     std::string qqnumber, password;
+    std::string ircnick, ircroom;
     std::string cfgfile;
 
     LwqqErrorCode err;
@@ -593,6 +594,8 @@ int main(int argc, char *argv[])
 		( "pwd,p", po::value<std::string>(&password), "password" )
 		( "logdir", po::value<std::string>(&logdir), "dir for logfile" )
 		( "daemon,d", po::value<bool>(&isdaemon), "go to background" )
+		( "nick", po::value<std::string>(&ircnick), "irc nick" )
+		( "room", po::value<std::string>(&ircroom), "irc room" )
 		;
 
 	po::variables_map vm;
@@ -626,12 +629,12 @@ int main(int argc, char *argv[])
 	Irc irc(my_cb);
 
 	irc.connect("irc.freenode.net");
-	irc.nick("qqbot");
+	irc.nick(ircnick);
 	irc.user("qqbot","0","qqbot");
-    irc.join("#avplayer");
+    irc.join(ircroom.empty()? "#avplayer" : ircroom);
 
     //this is block for blocking
-	irc.eventLoop();
+	boost::thread(boost::bind(&Irc::eventLoop, &irc));
 		
     lc.reset( lwqq_client_new(qqnumber.c_str(), password.c_str()), lwqq_client_free );
     if (!lc) {
