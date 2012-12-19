@@ -374,7 +374,7 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
 			}
 			buf += boost::str(boost::format(
-					"<img \"src=http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >图片加载中...</img>") 
+					"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >图片加载中...</img>") 
 					% c->data.cface.name);
 
 		}else {
