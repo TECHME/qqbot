@@ -343,18 +343,36 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 
 	TAILQ_FOREACH(c, &mmsg->content, entries) {
 		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
-			buf += c->data.str;
+			
+			std::string datastr = c->data.str;
+			if (!datastr.empty()){
+				boost::replace_all(datastr, "&", "&amp;");
+				boost::replace_all(datastr, "<", "&lt;");
+				boost::replace_all(datastr, ">", "&gt;");
+				boost::replace_all(datastr, "  ", "&nbsp;");
+			}
+			buf += datastr;			
 		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC){
 			printf ("Receive picture msg: %s\n", c->data.img.file_path);
 		}else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
-			printf ("Receive cface msg: %s\n", c->data.cface.name);
-			printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
-			std::string url = 
-				boost::str(boost::format(
-					"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
-					% c->data.cface.name);
+	  
+			boost::mutex::scoped_lock l(logfilemutex);
+			LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
+			if (group){
+				const char * nick = mmsg->group.send;
+				LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
+				if (by)
+					nick = by->nick;
+				
+				printf ("Receive cface msg: %s\n", c->data.cface.name);
+				printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
+				std::string url = 
+					boost::str(boost::format(
+						"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
+						% nick
+						% c->data.cface.name);
 				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
-			
+			}
 			buf += boost::str(boost::format(
 					"<img src=http://w.qq.com/cgi-bin/get_group_pic?pic=%s/>") 
 					% c->data.cface.name);
@@ -381,12 +399,6 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 			std::string messagetime = std::ctime(&mmsg->time);
 			*messagetime.rbegin()=0;
 			
-			if (!buf.empty()){
-				boost::replace_all(buf, "&", "&amp;");
-				boost::replace_all(buf, "<", "&lt;");
-				boost::replace_all(buf, ">", "&gt;");
-				boost::replace_all(buf, " ", "&nbsp;");
-			}
 			*(std::ostream*)(logfilemap[group->account].get()) <<  "<p>" << messagetime <<  " " << nick <<  "说：" <<  buf <<  "</p>" << std::endl;
 						
 		}else
@@ -427,10 +439,6 @@ static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
             }else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
 				printf ("Receive cface msg: %s\n", c->data.cface.name);				
 				printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
-
-				std::string url = boost::str(boost::format("CAI, image see http://w.qq.com/cgi-bin/get_group_pic?pic=%s") % c->data.cface.name) ;
-
-				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
 			}else {
 				printf ("Receive face msg: %d\n", c->data.face);
 			}
