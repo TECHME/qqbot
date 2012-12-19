@@ -335,10 +335,10 @@ static void command_loop()
     exit(0);
 }
 
-static void my_cb(const Irc::IrcMessage* pMsg)
+static void irc_message_got(const Irc::IrcMessage& pMsg)
 {
-    for (size_t i=0;i<pMsg->pcount;i++)
-        std::cout << pMsg->param[i] <<endl;
+    for (size_t i=0;i<pMsg.pcount;i++)
+        std::cout << pMsg.param[i] <<endl;
 
 }
 
@@ -626,7 +626,7 @@ int main(int argc, char *argv[])
     if (isdaemon)
 		daemon(0, 0);
 		
-	Irc irc(my_cb);
+	Irc irc(irc_message_got);
 
 	irc.connect("irc.freenode.net");
 	irc.nick(ircnick);

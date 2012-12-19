@@ -32,15 +32,15 @@ class Irc {
 			string param[15];
 			size_t pcount;
 		};
-        typedef boost::function<void(const IrcMessage* pMsg)> privmsg_cb;
+        typedef boost::function<void(const IrcMessage & pMsg)> privmsg_cb;
         privmsg_cb cb;
 
 	protected:
 		struct hostent *host;
 		void sendMessage(const string cmd, const char *param, ...) const;
-		IrcMessage * parseMessage(const string msg);
-		IrcMessage * waitForMessage(const string command);
-		void processMessage(IrcMessage *m);
+		IrcMessage parseMessage(const string msg);
+		IrcMessage waitForMessage(const string command);
+		void processMessage(IrcMessage m);
 		/** finds CTCP data in msg
 		 * \param msg second parameter from a privmsg
 		 * \param ctcp will hold the CTCP data in string if any

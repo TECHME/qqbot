@@ -124,45 +124,45 @@ bool Irc::findCTCP(string msg, string &ctcp) {
 /********************************************************************/
 
 void
-Irc::processMessage(IrcMessage *m) {
+Irc::processMessage(IrcMessage m) {
 	// PING
-	if(m->command == "PING" && m->pcount == 1)
-        this->pong(m->param[0]);
+	if(m.command == "PING" && m.pcount == 1)
+        this->pong(m.param[0]);
 
-	if(m->have_prefix) {
+	if(m.have_prefix) {
 		// JOIN
-		if(m->command == "JOIN" && m->pcount == 1);
-			//onJoin(this, m->prefix, m->param[0]);
+		if(m.command == "JOIN" && m.pcount == 1);
+			//onJoin(this, m.prefix, m.param[0]);
 		
 		// PRIVMSG and CTCP
-		if(m->command == "PRIVMSG" && m->pcount == 2) {
+		if(m.command == "PRIVMSG" && m.pcount == 2) {
 			string ctcp;
-			if(findCTCP(m->param[1], ctcp)) {
+			if(findCTCP(m.param[1], ctcp)) {
 				// this is a CTCP data string
 				// TODO: embedded CTCP?
-				//if(ctcp == "VERSION") onCTCPVersion(this,m->prefix);
-				//if(ctcp == "FINGER") onCTCPFinger(this,m->prefix);
-				//if(ctcp == "SOURCE") onCTCPSource(this,m->prefix);
-				//if(ctcp == "USERINFO") onCTCPUserInfo(this,m->prefix);
-				//if(ctcp == "CLIENTINFO") onCTCPClientInfo(this,m->prefix);
-				//if(ctcp == "PING") onCTCPPing(this,m->prefix);
+				//if(ctcp == "VERSION") onCTCPVersion(this,m.prefix);
+				//if(ctcp == "FINGER") onCTCPFinger(this,m.prefix);
+				//if(ctcp == "SOURCE") onCTCPSource(this,m.prefix);
+				//if(ctcp == "USERINFO") onCTCPUserInfo(this,m.prefix);
+				//if(ctcp == "CLIENTINFO") onCTCPClientInfo(this,m.prefix);
+				//if(ctcp == "PING") onCTCPPing(this,m.prefix);
 			} else {
 				// normal PRIVMSG
-				//onPrivMsg(this, m->prefix, m->param[0], m->param[1]);
+				//onPrivMsg(this, m.prefix, m.param[0], m.param[1]);
                 cb(m);
-                //cout << m->prefix + "::" + m->param[0]+"||"+m->param[1] <<endl;
+                //cout << m.prefix + "::" + m.param[0]+"||"+m.param[1] <<endl;
 			}
-		} else if(m->command == "PRIVMSG" && m->pcount != 2) {
+		} else if(m.command == "PRIVMSG" && m.pcount != 2) {
 			cout << "TODO: privmsg with pcount != 2" << endl;
 		}
 	}
 		
 	// RPL_WELCOME
-	if(m->command == "001") {
+	if(m.command == "001") {
 		string welcome_msg;
-		for(size_t i = 0; i < m->pcount; i++) {
+		for(size_t i = 0; i < m.pcount; i++) {
 			welcome_msg += " ";
-			welcome_msg += m->param[i];
+			welcome_msg += m.param[i];
 		}
 		//onRegistered(this, welcome_msg);
 	}
@@ -170,66 +170,66 @@ Irc::processMessage(IrcMessage *m) {
 
 /********************************************************************/
 
-Irc::IrcMessage *
+Irc::IrcMessage
 Irc::parseMessage(const string msg) {
 
-	IrcMessage *m = new IrcMessage;
+	IrcMessage m;
 	for(int i = 0; i < 15; i++)
-		m->param[i] = "";
-	m->command = "";
-	m->prefix = "";
+		m.param[i] = "";
+	m.command = "";
+	m.prefix = "";
 	
-	m->have_prefix = (msg[0] == ':');
+	m.have_prefix = (msg[0] == ':');
 	
 	// extract prefix from message if present
 	size_t msgstart = 0;
-	if(m->have_prefix) {
+	if(m.have_prefix) {
 		size_t pos = msg.find(" ");
-		m->prefix = msg.substr(1, pos - 1);
+		m.prefix = msg.substr(1, pos - 1);
 #ifdef DEBUG
-		cout << "[prefix] " << m->prefix << endl;
+		cout << "[prefix] " << m.prefix << endl;
 #endif
 		msgstart = pos+1;
 	}
 
 	// extract irc command
 	size_t paramstart = msg.find(" ", msgstart) + 1;
-	m->command = msg.substr(msgstart, paramstart - 1 - msgstart);
+	m.command = msg.substr(msgstart, paramstart - 1 - msgstart);
 #ifdef DEBUG
-	cout << "[cmd] " << m->command << endl;
+	cout << "[cmd] " << m.command << endl;
 #endif
 
-	m->pcount = 0;
-	while(m->pcount < 15) {
+	m.pcount = 0;
+	while(m.pcount < 15) {
 		// first check for ':' param prefix
 		// this means that this is the last parameter
 		if((msg[paramstart] == ':')) {
-			m->param[m->pcount] = msg.substr(
+			m.param[m.pcount] = msg.substr(
 					paramstart+1,msg.length()-1-paramstart);
-			m->pcount++;
+			m.pcount++;
 			break;
 		}
 		// try to localise next parameter
 		// if not present ... we know this is the last
 		size_t next = next = msg.find(" ", paramstart);
 		if((next == string::npos)) {
-			m->param[m->pcount] = msg.substr(
+			m.param[m.pcount] = msg.substr(
 					paramstart,
 					msg.length() - paramstart
 				);
-			m->pcount++;
+			m.pcount++;
 			break;
 		}
 		// there are more than this parameter so
 		// set paramstart to the next parameter
-		m->param[m->pcount] = msg.substr(paramstart, next-paramstart);
+		m.param[m.pcount] = msg.substr(paramstart, next-paramstart);
 		paramstart = next+1;
-		m->pcount++;
+		m.pcount++;
 	}
 #ifdef DEBUG
-	cout << "[pcount] " << m->pcount << endl;
-	for(size_t i = 0; i < m->pcount; i++)
-		cout << "[param][" << i << "] " << m->param[i] << endl;
+	cout << "[pcount] " << m.pcount << endl;
+	for(size_t i = 0; i < m.pcount; i++)
+		cout << "[param][" << i << "] " << m.param[i] << endl;
 #endif
 
 	return m;
@@ -344,11 +344,10 @@ Irc::eventLoop() {
 			cout << "[msg] " << msg << endl;
 			#endif 
 			// parse the message into a IrcMessage struct
-			IrcMessage *m = parseMessage(msg);
+			IrcMessage m = parseMessage(msg);
 			// examine/process the message and 
 			// emit appropriate signals
 			processMessage(m);
-			delete m;
 		} catch (ConnectionClosedException) {
 			throw ConnectionClosedException();
 		}
@@ -496,7 +495,7 @@ Irc::extractFromHostmask(const string whom, string &nick,
 
 /********************************************************************/
 
-Irc::IrcMessage *
+Irc::IrcMessage
 Irc::waitForMessage(const string command) {
 	// maybe put a threshold here .. like give
 	// up when read 100 messages ?
@@ -505,10 +504,9 @@ Irc::waitForMessage(const string command) {
 		#ifdef DEBUG
 		cout << "[msg] " << msg << endl;
 		#endif 
-		IrcMessage *m = parseMessage(msg);
-		if(command.find(m->command)) return m;
+		IrcMessage m = parseMessage(msg);
+		if(command.find(m.command)) return m;
 		else processMessage(m);
-		delete m;
 	}
 }
 
@@ -531,14 +529,14 @@ Irc::getChannelTopic(const string channel) {
 	477    ERR_NOCHANMODES "<channel> :Channel doesn't support modes"
 */
 	sendMessage("TOPIC", channel.c_str(), 0);
-	IrcMessage *m = waitForMessage("331 332 442 482 477");
-	if(m->param[1] == channel) {
-		string topic( m->param[2]); 
-		if(m->command == "332")	return topic;
-		if(m->command == "331") return "";
-		if(m->command == "442") throw NotOnChannelException();
-		if(m->command == "482") throw ChanopPrivsNeededException();
-		if(m->command == "477") throw NoChanModesException();
+	IrcMessage m = waitForMessage("331 332 442 482 477");
+	if(m.param[1] == channel) {
+		string topic( m.param[2]); 
+		if(m.command == "332")	return topic;
+		if(m.command == "331") return "";
+		if(m.command == "442") throw NotOnChannelException();
+		if(m.command == "482") throw ChanopPrivsNeededException();
+		if(m.command == "477") throw NoChanModesException();
 	}
 	processMessage(m);
 	return "";
