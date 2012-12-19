@@ -14,6 +14,7 @@ namespace fs = boost::filesystem;
 namespace po = boost::program_options;
 #include <boost/make_shared.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/format.hpp>
 
 #include <fstream>
 #include <string.h>
@@ -343,8 +344,25 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	TAILQ_FOREACH(c, &mmsg->content, entries) {
 		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
 			buf += c->data.str;
-        } else {
-			printf ("Receive face msg: %d\n", c->data.face);
+		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC){
+			printf ("Receive picture msg: %s\n", c->data.img.file_path);
+		}else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
+			printf ("Receive cface msg: %s\n", c->data.cface.name);
+			printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
+			std::string url = 
+				boost::str(boost::format(
+					"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
+					% c->data.cface.name);
+				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
+			
+			buf += boost::str(boost::format(
+					"<img src=http://w.qq.com/cgi-bin/get_group_pic?pic=%s/>") 
+					% c->data.cface.name);
+
+		}else {
+				printf ("Receive face msg: %d\n", c->data.face);
+				buf += boost::str(boost::format("表情：%d") 
+					% c->data.face);
 		}
 	}
 	//log to disk file
@@ -404,9 +422,18 @@ static void handle_new_msg(LwqqClient  *lc, LwqqRecvMsg *recvmsg)
 		TAILQ_FOREACH(c, &mmsg->content, entries) {
             if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
                 strcat(buf, c->data.str);
-            } else {
-                printf ("Receive face msg: %d\n", c->data.face);
-            }
+            } else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC){
+                printf ("Receive picture msg: %s\n", c->data.img.file_path);
+            }else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
+				printf ("Receive cface msg: %s\n", c->data.cface.name);				
+				printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
+
+				std::string url = boost::str(boost::format("CAI, image see http://w.qq.com/cgi-bin/get_group_pic?pic=%s") % c->data.cface.name) ;
+
+				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
+			}else {
+				printf ("Receive face msg: %d\n", c->data.face);
+			}
         }
 //         printf("Receive message: %s\n", buf);
     } else if (msg->type == LWQQ_MT_STATUS_CHANGE) {
