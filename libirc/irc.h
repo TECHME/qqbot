@@ -4,7 +4,7 @@
 
 #ifndef WIN32
 #include <sys/socket.h>
-#include <sigc++/signal_system.h>
+//#include <sigc++/signal_system.h>
 #include <netdb.h>
 #else
 #include <WinSock.h>

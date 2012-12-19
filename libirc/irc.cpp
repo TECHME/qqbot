@@ -64,10 +64,9 @@ Irc::sendMessage(const string cmd, const char *param, ...) const {
 /********************************************************************/
 
 string
-Irc::host2ip(const char* host){
-
-    HOSTENT *lpHostEnt=0;
-    lpHostEnt=gethostbyname(host);
+Irc::host2ip(const char* host)
+{
+    hostent* lpHostEnt=gethostbyname(host);
     if(lpHostEnt==0)
         return "";
 

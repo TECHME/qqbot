@@ -23,6 +23,8 @@ namespace po = boost::program_options;
 #include <stdio.h>
 #include <time.h>
 
+#include "libirc/irc.h"
+
 extern "C" {
 #include <lwqq/login.h>
 #include <lwqq/logger.h>
@@ -333,6 +335,14 @@ static void command_loop()
     exit(0);
 }
 
+static void my_cb(const Irc::IrcMessage* pMsg)
+{
+    for (size_t i=0;i<pMsg->pcount;i++)
+        std::cout << pMsg->param[i] <<endl;
+
+}
+
+
 //TODO
 //将聊天信息写入日志文件！
 static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
@@ -612,6 +622,16 @@ int main(int argc, char *argv[])
     signal(SIGINT, signal_handler);
     if (isdaemon)
 		daemon(0, 0);
+		
+	Irc irc(my_cb);
+
+	irc.connect("irc.freenode.net");
+	irc.nick("qqbot");
+	irc.user("qqbot","0","qqbot");
+    irc.join("#avplayer");
+
+    //this is block for blocking
+	irc.eventLoop();
 		
     lc.reset( lwqq_client_new(qqnumber.c_str(), password.c_str()), lwqq_client_free );
     if (!lc) {
