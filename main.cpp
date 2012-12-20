@@ -389,8 +389,8 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 
 		}else {
 				printf ("Receive face msg: %d\n", c->data.face);
-				buf += boost::str(boost::format("表情：%d") 
-					% c->data.face);
+				buf += boost::str(boost::format(
+					"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % c->data.face);
 		}
 	}
 	//log to disk file
