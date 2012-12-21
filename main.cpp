@@ -335,11 +335,8 @@ static void command_loop()
     exit(0);
 }
 
-static void irc_message_got(const Irc::IrcMessage& pMsg)
+static void irc_message_got(const IrcMsg pMsg)
 {
-    for (size_t i=0;i<pMsg.pcount;i++)
-        std::cout << pMsg.param[i] <<endl;
-
 }
 
 
@@ -626,16 +623,12 @@ int main(int argc, char *argv[])
     if (isdaemon)
 		daemon(0, 0);
 		
-	Irc irc(irc_message_got);
-
-	irc.connect("irc.freenode.net");
-	irc.nick(ircnick);
-	irc.user("qqbot","0","qqbot");
-    irc.join(ircroom.empty()? "#avplayer" : ircroom);
+	boost::asio::io_service asio;
+	
+	IrcClient client(asio, irc_message_got, "irc.freenode.net", "6667");
+	client.login("qqbot_shenghua","#avplayer");
 
     //this is block for blocking
-	boost::thread(boost::bind(&Irc::eventLoop, &irc));
-		
     lc.reset( lwqq_client_new(qqnumber.c_str(), password.c_str()), lwqq_client_free );
     if (!lc) {
         lwqq_log(LOG_NOTICE, "Create lwqq client failed\n");
@@ -661,6 +654,8 @@ int main(int argc, char *argv[])
 	lwqq_async_add_event_listener(getgroups, get_group_detail_info ,  lc.get() );
 
 	/* receive message */
-    recvmsg_thread(lc);
+    boost::thread(boost::bind(&recvmsg_thread, lc));
+    boost::asio::io_service::work work(asio);
+    asio.run();
     return 0;
 }

@@ -18,7 +18,7 @@ typedef boost::function<void(const IrcMsg& msg)> privmsg_cb;
 class IrcClient
 {
 public:
-    IrcClient(const privmsg_cb &cb,boost::asio::io_service &io_service,const std::string& server, const std::string& port);
+    IrcClient(boost::asio::io_service &io_service, const privmsg_cb &cb,const std::string& server, const std::string& port);
     ~IrcClient();
 private:
     void handle_connect(const boost::system::error_code& err);

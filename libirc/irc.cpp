@@ -1,6 +1,6 @@
 #include "irc.h"
 
-IrcClient::IrcClient(const privmsg_cb &cb,boost::asio::io_service &io_service,const std::string& server, const std::string& port):cb_(cb),resolver_(io_service),socket_(io_service)
+IrcClient::IrcClient(boost::asio::io_service &io_service,const privmsg_cb &cb,const std::string& server, const std::string& port):cb_(cb),resolver_(io_service),socket_(io_service)
 {
     boost::asio::ip::tcp::resolver::query query(server,port);
     boost::system::error_code ec;
