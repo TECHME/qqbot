@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 2.8)
+project(libwebqq)
+
+find_package(Boost 1.46 REQUIRED COMPONENTS signals)
+
+include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/urdl/include/)
+
+
+add_library(libwebqq STATIC webqq.cpp logger.c)
+
+target_link_libraries(libwebqq urdl ${Boost_LIBRARIES})
+
+add_executable(test test.cpp)
+
+target_link_libraries(test libwebqq)
