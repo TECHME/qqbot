@@ -526,7 +526,9 @@ private:
   option_set& options_;
   boost::asio::streambuf request_buffer_;
   boost::asio::streambuf reply_buffer_;
+public:  
   std::string headers_;
+private:
   std::string content_type_;
   std::size_t content_length_;
   std::string location_;

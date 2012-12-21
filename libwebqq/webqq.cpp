@@ -58,7 +58,13 @@ static std::string parse_verify_uin(const char *str)
 
 static std::string get_cookie(std::string httpheader,std::string key)
 {
-	return "";
+	std::string searchkey = key + "=";
+	std::string::size_type keyindex = httpheader.find(searchkey);
+	if (keyindex == std::string::npos)
+		return "";
+	keyindex +=searchkey.length();
+	std::string::size_type valend = httpheader.find("; ", keyindex);
+	return httpheader.substr(keyindex , valend-keyindex);
 }
 
 static void update_cookies(LwqqCookies *cookies, std::string httpheader,
@@ -169,12 +175,11 @@ void webqq::cb_got_version(char* response, const boost::system::error_code& ec, 
 		read_streamptr stream(new urdl::read_stream(io_service));
 
 		stream->set_option(urdl::http::cookie(cookie));
-
 		stream->async_open(url,boost::bind(&webqq::cb_get_vc,this, stream, boost::asio::placeholders::error()) );
 	}
 }
 
-void webqq::cb_got_vc(char* response, const boost::system::error_code& ec, std::size_t length)
+void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
 {
 	/**
 	* 
@@ -216,7 +221,7 @@ void webqq::cb_got_vc(char* response, const boost::system::error_code& ec, std::
         vc.str = s;
 
         /* We need get the ptvfsession from the header "Set-Cookie" */
-        update_cookies(&cookies, "", "ptvfsession", 1);
+        update_cookies(&cookies, stream->get_httpheader(), "ptvfsession", 1);
         lwqq_log(LOG_NOTICE, "Verify code: %s\n", vc.str.c_str());
     } else if (*c == '1') {
         /* We need get the verify image. */
@@ -254,5 +259,5 @@ void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec
 {
 	char * data = new char[1024];
 	stream->async_read_some(boost::asio::buffer(data, 1024),
-		boost::bind(&webqq::cb_got_vc, this, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
+		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
 }
