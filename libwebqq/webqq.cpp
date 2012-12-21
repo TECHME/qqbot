@@ -58,7 +58,7 @@ static std::string parse_verify_uin(const char *str)
 
 static std::string get_cookie(std::string httpheader,std::string key)
 {
-	
+	return "";
 }
 
 static void update_cookies(LwqqCookies *cookies, std::string httpheader,
@@ -91,6 +91,7 @@ static void update_cookies(LwqqCookies *cookies, std::string httpheader,
     } else {
         lwqq_log(LOG_WARNING, "No this cookie: %s\n", key.c_str());
     }
+#undef FREE_AND_STRDUP
 
     if (update_cache) {
 		
@@ -124,7 +125,6 @@ static void update_cookies(LwqqCookies *cookies, std::string httpheader,
 			cookies->lwcookies += "verifysession="+cookies->verifysession+"; ";
         }
     }
-#undef FREE_AND_STRDUP
 }
 
 // build webqq and setup defaults
@@ -191,7 +191,8 @@ void webqq::cb_got_vc(char* response, const boost::system::error_code& ec, std::
 	
 	char *s;
 	char *c = strstr(response, "ptui_checkVC");
-
+    c = strchr(response, '\'');
+    c++;
     if (*c == '0') {
         /* We got the verify code. */
         
