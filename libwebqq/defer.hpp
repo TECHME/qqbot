@@ -40,6 +40,10 @@ namespace std{
 namespace detail{
 class defer
 {
+	defer();
+	defer( defer & );
+	defer( const defer & );
+	defer & operator = (const defer &);
 public:
 	defer(std::function<void()> __defer){
 		_defer = __defer;

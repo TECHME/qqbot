@@ -86,6 +86,8 @@ public:
       = options_.get_option<urdl::http::request_content_type>().value();
     std::string user_agent
       = options_.get_option<urdl::http::user_agent>().value();
+    std::string referer
+      = options_.get_option<urdl::http::request_referer>().value();
     std::string cookie
       = options_.get_option<urdl::http::cookie>().value();
     // Form the request. We specify the "Connection: close" header so that the
@@ -109,6 +111,9 @@ public:
         request_stream << request_content_type << "\r\n";
       }
     }
+    if (referer.length()){
+			request_stream << "Referer: " <<  referer <<  "\r\n";
+	}
     if (cookie.length())
 		request_stream << "Cookie: " <<  cookie <<  "\r\n";
     if (user_agent.length())
@@ -237,6 +242,8 @@ public:
           = options_.get_option<urdl::http::request_content>().value();
         std::string request_content_type
           = options_.get_option<urdl::http::request_content_type>().value();
+		std::string referer
+		  = options_.get_option<urdl::http::request_referer>().value();
 		std::string cookie
 		  = options_.get_option<urdl::http::cookie>().value();
         std::string user_agent
@@ -266,6 +273,9 @@ public:
             request_stream << request_content_type << "\r\n";
           }
         }
+        if (referer.length()){
+			request_stream << "Referer: " <<  referer <<  "\r\n";
+		}
 		if (cookie.length())
 		  request_stream << "Cookie: " <<  cookie <<  "\r\n";
 		if (user_agent.length())

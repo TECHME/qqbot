@@ -22,9 +22,11 @@
 
 #include "webqq.h"
 #include "defer.hpp"
+#include "url.hpp"
 
 extern "C"{
 #include "logger.h"
+#include "md5.h"
 };
 
 using namespace qq;
@@ -38,6 +40,31 @@ using namespace qq;
 #define LWQQ_URL_SET_STATUS "http://d.web2.qq.com/channel/login2"
 /* URL for get webqq version */
 #define LWQQ_URL_VERSION "http://ui.ptlogin2.qq.com/cgi-bin/ver"
+
+static void upcase_string(char *str, int len)
+{
+    int i;
+    for (i = 0; i < len; ++i) {
+        if (islower(str[i]))
+            str[i]= toupper(str[i]);
+    }
+}
+static std::string generate_clientid()
+{
+    int r;
+    struct timeval tv;
+    long t;
+    char buf[20] = {0};
+    
+    srand(time(NULL));
+    r = rand() % 90 + 10;
+    if (gettimeofday(&tv, NULL)) {
+        return NULL;
+    }
+    t = tv.tv_usec % 1000000;
+    snprintf(buf, sizeof(buf), "%d%ld", r, t);
+    return buf;
+}
 
 // ptui_checkVC('0','!IJG, ptui_checkVC('0','!IJG', '\x00\x00\x00\x00\x54\xb3\x3c\x53');
 static std::string parse_verify_uin(const char *str)
@@ -133,10 +160,86 @@ static void update_cookies(LwqqCookies *cookies, std::string httpheader,
     }
 }
 
+static void sava_cookie(LwqqCookies * cookies,std::string  httpheader)
+{
+	update_cookies(cookies, httpheader, "ptcz", 0);
+    update_cookies(cookies, httpheader, "skey",  0);
+    update_cookies(cookies, httpheader, "ptwebqq", 0);
+    update_cookies(cookies, httpheader, "ptuserinfo", 0);
+    update_cookies(cookies, httpheader, "uin", 0);
+    update_cookies(cookies, httpheader, "ptisp", 0);
+    update_cookies(cookies, httpheader, "pt2gguin", 1);
+}
+
+
+/**
+ * I hacked the javascript file named comm.js, which received from tencent
+ * server, and find that fuck tencent has changed encryption algorithm
+ * for password in webqq3 . The new algorithm is below(descripted with javascript):
+ * var M=C.p.value; // M is the qq password 
+ * var I=hexchar2bin(md5(M)); // Make a md5 digest
+ * var H=md5(I+pt.uin); // Make md5 with I and uin(see below)
+ * var G=md5(H+C.verifycode.value.toUpperCase());
+ * 
+ * @param pwd User's password
+ * @param vc Verify Code. e.g. "!M6C"
+ * @param uin A string like "\x00\x00\x00\x00\x54\xb3\x3c\x53", NB: it
+ *        must contain 8 hexadecimal number, in this example, it equaled
+ *        to "0x0,0x0,0x0,0x0,0x54,0xb3,0x3c,0x53"
+ * 
+ * @return Encoded password on success, else NULL on failed
+ */
+static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin)
+{
+    int i;
+    int uin_byte_length;
+    char buf[128] = {0};
+    char _uin[9] = {0};
+
+    /* Calculate the length of uin (it must be 8?) */
+    uin_byte_length = strlen(uin) / 4;
+
+    /**
+     * Ok, parse uin from string format.
+     * "\x00\x00\x00\x00\x54\xb3\x3c\x53" -> {0,0,0,0,54,b3,3c,53}
+     */
+    for (i = 0; i < uin_byte_length ; i++) {
+        char u[5] = {0};
+        char tmp;
+        strncpy(u, uin + i * 4 + 2, 2);
+
+        errno = 0;
+        tmp = strtol(u, NULL, 16);
+        if (errno) {
+            return NULL;
+        }
+        _uin[i] = tmp;
+    }
+
+    /* Equal to "var I=hexchar2bin(md5(M));" */
+    lutil_md5_digest((unsigned char *)pwd, strlen(pwd), (char *)buf);
+
+    /* Equal to "var H=md5(I+pt.uin);" */
+    memcpy(buf + 16, _uin, uin_byte_length);
+    lutil_md5_data((unsigned char *)buf, 16 + uin_byte_length, (char *)buf);
+    
+    /* Equal to var G=md5(H+C.verifycode.value.toUpperCase()); */
+    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", vc);
+    upcase_string(buf, strlen(buf));
+
+    lutil_md5_data((unsigned char *)buf, strlen(buf), (char *)buf);
+    upcase_string(buf, strlen(buf));
+
+    /* OK, seems like every is OK */
+    lwqq_puts(buf);
+    return buf;
+}
+
+
 // build webqq and setup defaults
 webqq::webqq(boost::asio::io_service& _io_service,
-	std::string _qqnum, std::string _passwd, LWQQ_STATUS status)
-	:io_service(_io_service), qqnum(_qqnum), passwd(_passwd)
+	std::string _qqnum, std::string _passwd, LWQQ_STATUS _status)
+	:io_service(_io_service), qqnum(_qqnum), passwd(_passwd), status(_status)
 {
 	//开始登录!
 
@@ -181,6 +284,7 @@ void webqq::cb_got_version(char* response, const boost::system::error_code& ec, 
 
 void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
 {
+	defer(boost::bind(operator delete, response));
 	/**
 	* 
 	* The http message body has two format:
@@ -243,10 +347,138 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
 
         lwqq_log(LOG_NOTICE, "We need verify code image: %s\n", vc.str.c_str());
     }
-    
+    std::string md5 = lwqq_enc_pwd(passwd.c_str(), vc.str.c_str(), vc.uin.c_str());
+
+    // do login !
+    std::string url = boost::str(
+		boost::format(
+		    "%s/login?u=%s&p=%s&verifycode=%s&"
+             "webqq_type=%d&remember_uin=1&aid=1003903&login2qq=1&"
+             "u1=http%%3A%%2F%%2Fweb.qq.com%%2Floginproxy.html"
+             "%%3Flogin2qq%%3D1%%26webqq_type%%3D10&h=1&ptredirect=0&"
+             "ptlang=2052&from_ui=1&pttype=1&dumy=&fp=loginerroralert&"
+             "action=2-11-7438&mibao_css=m_webqq&t=1&g=1") 
+             % LWQQ_URL_LOGIN_HOST
+             % qqnum
+             % md5
+             % vc.str
+             % status
+	);
+
+	read_streamptr loginstream(new urdl::read_stream(io_service));
+	loginstream->set_option(urdl::http::cookie(cookies.lwcookies));
+	loginstream->async_open(url,boost::bind(&webqq::cb_do_login,this, loginstream, boost::asio::placeholders::error()) );
 
 }
 
+void webqq::cb_done_login(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
+{
+	defer(boost::bind(operator delete, response));
+    char *p = strstr(response, "\'");
+    if (!p) {
+        return;
+    }
+    char buf[4] = {0};
+    int status;
+    strncpy(buf, p + 1, 1);
+    status = atoi(buf);
+
+    switch (status) {
+    case 0:
+        sava_cookie(&cookies, stream->get_httpheader());
+        lwqq_log(LOG_NOTICE, "login success!\n");
+        break;
+        
+    case 1:
+        lwqq_log(LOG_WARNING, "Server busy! Please try again\n");
+
+        status = LWQQ_STATUS_OFFLINE;
+    case 2:
+        lwqq_log(LOG_ERROR, "Out of date QQ number\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    case 3:
+        lwqq_log(LOG_ERROR, "Wrong password\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    case 4:
+        lwqq_log(LOG_ERROR, "Wrong verify code\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    case 5:
+        lwqq_log(LOG_ERROR, "Verify failed\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    case 6:
+        lwqq_log(LOG_WARNING, "You may need to try login again\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+    case 7:
+        lwqq_log(LOG_ERROR, "Wrong input\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    case 8:
+        lwqq_log(LOG_ERROR, "Too many logins on this IP. Please try again\n");
+        status = LWQQ_STATUS_OFFLINE;
+
+
+    default:
+        status = LWQQ_STATUS_OFFLINE;
+        lwqq_log(LOG_ERROR, "Unknow error");
+    }
+
+    //set_online_status(lc, lwqq_status_to_str(lc->stat), err);
+    if (status = LWQQ_STATUS_ONLINE){
+		siglogin();
+	}
+	clientid = generate_clientid();
+	//start polling messages!
+
+	//change status
+	do_poll_one_msg();
+}
+
+void webqq::do_poll_one_msg()
+{
+    /* Create a POST request */
+    std::string url = boost::str(
+		boost::format("%s/channel/poll2") % "http://d.web2.qq.com"
+	);
+	
+	std::string postcontent = boost::str(
+		boost::format("{\"clientid\":\"%s\",\"psessionid\":\"%s\"}")
+		% clientid 
+		% psessionid		
+	);
+	
+//     s = url_encode(msg);
+//     snprintf(msg, sizeof(msg), "r=%s", s);
+//     s_free(s);
+// 
+
+    read_streamptr loginstream(new urdl::read_stream(io_service));
+	loginstream->set_option(urdl::http::cookie(cookies.lwcookies));
+	loginstream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+	loginstream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
+
+	loginstream->async_open(url,boost::bind(&webqq::cb_poll_msg,this, loginstream, boost::asio::placeholders::error()) );
+}
+
+
+void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std::size_t length)
+{
+	defer(boost::bind(operator delete, response));
+	//开启新的 poll	
+	do_poll_one_msg();
+	
+	//处理！
+	std::cout << response <<  std::endl;
+}
 
 void webqq::cb_get_version(read_streamptr stream, const boost::system::error_code& ec)
 {
@@ -259,5 +491,20 @@ void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec
 {
 	char * data = new char[1024];
 	stream->async_read_some(boost::asio::buffer(data, 1024),
-		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
+		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
+}
+
+
+void webqq::cb_do_login(read_streamptr stream, const boost::system::error_code& ec)
+{
+	char * data = new char[8192];
+	stream->async_read_some(boost::asio::buffer(data, 8192),
+		boost::bind(&webqq::cb_done_login, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
+}
+
+void webqq::cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec)
+{
+	char * data = new char[16384];
+	stream->async_read_some(boost::asio::buffer(data, 16384),
+		boost::bind(&webqq::cb_poll_msg, this, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }

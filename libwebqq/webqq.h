@@ -106,19 +106,28 @@ public:// signals
 	boost::signal< void ( qq::message)> siggroupmessage;
 
 private:
-	void cb_got_version(char * response, const boost::system::error_code& ec, std::size_t length);
 	void cb_get_version(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_got_version(char * response, const boost::system::error_code& ec, std::size_t length);
 
 	void cb_get_vc(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length);
 
+	void cb_do_login(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_done_login(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
+	
+	void do_poll_one_msg();
+	void cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_poll_msg(char * response, const boost::system::error_code& ec, std::size_t length);
+
 private:
-	boost::asio::io_service & io_service;
+    boost::asio::io_service & io_service;
 
 	std::string qqnum, passwd;
+    LWQQ_STATUS status;
 
 	std::string	version;
-	
+	std::string clientid, psessionid;
+
 	LwqqVerifyCode vc;
 	LwqqCookies cookies;
 };
