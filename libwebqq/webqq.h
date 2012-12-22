@@ -41,8 +41,238 @@ typedef enum LWQQ_STATUS{
     LWQQ_STATUS_SLIENT = 70
 }LWQQ_STATUS;
 
-struct message{
-	std::string content;
+typedef enum LwqqMsgType {
+    LWQQ_MT_BUDDY_MSG = 0,
+    LWQQ_MT_GROUP_MSG,
+    LWQQ_MT_DISCU_MSG,
+    LWQQ_MT_SESS_MSG, //group whisper message
+    LWQQ_MT_STATUS_CHANGE,
+    LWQQ_MT_KICK_MESSAGE,
+    LWQQ_MT_SYSTEM,
+    LWQQ_MT_BLIST_CHANGE,
+    LWQQ_MT_SYS_G_MSG,
+    LWQQ_MT_OFFFILE,
+    LWQQ_MT_FILETRANS,
+    LWQQ_MT_FILE_MSG,
+    LWQQ_MT_NOTIFY_OFFFILE,
+    LWQQ_MT_INPUT_NOTIFY,
+    LWQQ_MT_UNKNOWN,
+} LwqqMsgType;
+
+
+#include <vector>
+
+typedef enum {
+    LWQQ_MC_OK = 0,
+    LWQQ_MC_TOO_FAST = 108,             //< send message too fast
+    LWQQ_MC_LOST_CONN = 121
+}LwqqMsgRetcode;
+
+typedef struct LwqqMsgContent {
+    enum {
+        LWQQ_CONTENT_STRING,
+        LWQQ_CONTENT_FACE,
+        LWQQ_CONTENT_OFFPIC,
+//custom face :this can send/recv picture
+        LWQQ_CONTENT_CFACE
+    }type;
+    union {
+        int face;
+        char *str;
+        //webqq protocol
+        //this used in offpic format which may replaced by cface (custom face)
+        struct {
+            char* name;
+            char* data;
+            size_t size;
+            int success;
+            char* file_path;
+        }img;
+        struct {
+            char* name;
+            char* data;
+            size_t size;
+            char* file_id;
+            char* key;
+            char serv_ip[24];
+            char serv_port[8];
+        }cface;
+    } data;
+} LwqqMsgContent ;
+
+typedef struct LwqqMsgMessage {
+    qq::LwqqMsgType type;
+    char *from;
+    char *to;
+    char *msg_id;
+    int msg_id2;
+    time_t time;
+    union{
+        struct {
+            char *send; /* only group use it to identify who send the group message */
+            char *group_code; /* only avaliable in group message */
+        }group;
+        struct {
+            char *id;   /* only sess msg use it.means gid */
+            char *group_sig; /* you should fill it before send */
+        }sess;
+        struct {
+            char *send;
+            char *did;
+        }discu;
+    };
+
+    /* For font  */
+    std::string f_name;
+    int f_size;
+    struct {
+        int b, i, u; /* bold , italic , underline */
+    } f_style;
+    std::string f_color;
+
+    std::vector<LwqqMsgContent> content;
+} LwqqMsgMessage;
+
+typedef struct LwqqMsgStatusChange {
+    char *who;
+    char *status;
+    int client_type;
+} LwqqMsgStatusChange;
+
+typedef struct LwqqMsgKickMessage {
+    int show_reason;
+    char *reason;
+    char *way;
+} LwqqMsgKickMessage;
+typedef struct LwqqMsgSystem{
+    char* seq;
+    enum {
+        VERIFY_REQUIRED,
+        VERIFY_PASS_ADD,
+        VERIFY_PASS,
+        ADDED_BUDDY_SIG,
+        SYSTEM_TYPE_UNKNOW
+    }type;
+    char* from_uin;
+    char* account;
+    char* stat;
+    char* client_type;
+    union{
+        struct{
+            char* sig;
+        }added_buddy_sig;
+        struct{
+            char* msg;
+            char* allow;
+        }verify_required;
+        struct{
+            char* group_id;
+        }verify_pass;
+    };
+} LwqqMsgSystem;
+typedef struct LwqqMsgSysGMsg{
+    enum {
+        GROUP_CREATE,
+        GROUP_JOIN,
+        GROUP_LEAVE,
+        GROUP_UNKNOW
+    }type;
+    char* gcode;
+}LwqqMsgSysGMsg;
+typedef struct LwqqMsgBlistChange{
+//     LIST_HEAD(,LwqqSimpleBuddy) added_friends;
+//     LIST_HEAD(,LwqqBuddy) removed_friends;
+} LwqqMsgBlistChange;
+typedef struct LwqqMsgOffFile{
+    char* msg_id;
+    char* rkey;
+    char ip[24];
+    char port[8];
+    char* from;
+    char* to;
+    size_t size;
+    char* name;
+    char* path;///< only used when upload
+    time_t expire_time;
+    time_t time;
+}LwqqMsgOffFile;
+enum _file_status {
+	TRANS_OK=0,
+	TRANS_ERROR=50,
+	TRANS_TIMEOUT=51,
+	REFUSED_BY_CLIENT=53,
+};
+
+    typedef struct FileTransItem{
+    char* file_name;
+	enum _file_status file_status;
+    //int file_status;
+    int pro_id;
+//     LIST_ENTRY(FileTransItem) entries;
+}FileTransItem;
+typedef struct LwqqMsgFileTrans{
+    int file_count;
+    char* from;
+    char* to;
+    char* lc_id;
+    size_t now;
+    int operation;
+    int type;
+//     LIST_HEAD(,FileTransItem) file_infos;
+}LwqqMsgFileTrans;
+typedef struct LwqqMsgFileMessage{
+    int msg_id;
+    enum {
+        MODE_RECV,
+        MODE_REFUSE,
+        MODE_SEND_ACK
+    } mode;
+    char* from;
+    char* to;
+    int msg_id2;
+    int session_id;
+    time_t time;
+    int type;
+    char* reply_ip;
+    union{
+        struct {
+            int msg_type;
+            char* name;
+            int inet_ip;
+        }recv;
+        struct {
+            enum{
+                CANCEL_BY_USER=1,
+                CANCEL_BY_OVERTIME=3
+            } cancel_type;
+        }refuse;
+    };
+}LwqqMsgFileMessage;
+
+typedef struct LwqqMsgNotifyOfffile{
+    int msg_id;
+    char* from;
+    char* to;
+    enum {
+        NOTIFY_OFFFILE_REFUSE = 2,
+    }action;
+    char* filename;
+    size_t filesize;
+}LwqqMsgNotifyOfffile;
+
+typedef struct LwqqMsgInputNotify{
+    char* from;
+    char* to;
+    int msg_type;
+}LwqqMsgInputNotify;
+
+struct LwqqMsg {
+    /* Message type. e.g. buddy message or group message */
+    qq::LwqqMsgType type;
+    void *opaque;               /**< Message details */
+
+    LwqqMsg(qq::LwqqMsgType type);
+    ~LwqqMsg();
 };
 
 // 好友
@@ -103,7 +333,7 @@ public:// signals
 	boost::signal< bool (int stage, int why)> sigerror;
 	
 	// 有群消息的时候激发.
-	boost::signal< void ( qq::message)> siggroupmessage;
+	boost::signal< void ( const LwqqMsg & )> sigmessage;
 	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:
