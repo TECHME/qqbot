@@ -25,6 +25,8 @@
 #include <boost/signal.hpp>
 #include <boost/concept_check.hpp>
 #include <urdl/read_stream.hpp>
+#include <boost/property_tree/ptree.hpp>
+namespace pt = boost::property_tree;
 
 typedef boost::shared_ptr<urdl::read_stream> read_streamptr;
 
@@ -351,10 +353,12 @@ private:
 	void cb_online_status(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_online_status(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
 
-	
+
 	void do_poll_one_msg();
 	void cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_poll_msg(char * response, const boost::system::error_code& ec, std::size_t length);
+
+	void process_msg(pt::ptree jstree);
 
 private:
     boost::asio::io_service & io_service;

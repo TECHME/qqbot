@@ -19,10 +19,7 @@
 #include <urdl/read_stream.hpp>
 #include <urdl/http.hpp>
 #include <boost/format.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-namespace pt = boost::property_tree;
-namespace json = pt::json_parser;
 
 #include "webqq.h"
 #include "defer.hpp"
@@ -51,16 +48,16 @@ static unsigned int hex2char(char c)
     if (c >= '0' && c <= '9') {
         return c - '0';
     }
-        
+
     if (c >= 'a' && c <= 'f') {
         return c - 'a' + 10;
     }
-        
+
     if (c >= 'A' && c <= 'F') {
         return c - 'A' + 10;
     }
-    
-    return 0;       
+
+    return 0;
 }
 
 /** 
@@ -79,7 +76,7 @@ static unsigned int hex2char(char c)
  * @param to 
  * @param from 
  */
-static char *do_ucs4toutf8(const char *from)
+static std::string do_ucs4toutf8(const char *from)
 {
     char str[5] = {0};
     int i;
@@ -140,7 +137,7 @@ static char *do_ucs4toutf8(const char *from)
         return NULL;
     }
     
-    return strdup(str);
+    return str;
 }
 
 static std::string ucs4toutf8(const char *from)
@@ -149,31 +146,20 @@ static std::string ucs4toutf8(const char *from)
         return NULL;
     }
     
-    char *out = NULL;
-    int outlen = 0;
+    std::string out;
     const char *c;
     
     for (c = from; *c != '\0'; ++c) {
-        char *s;
+        std::string s;
         if (*c == '\\' && *(c + 1) == 'u') {
-            s = do_ucs4toutf8(c);
-            out = (char*)realloc(out, outlen + strlen(s) + 1);
-            snprintf(out + outlen, strlen(s) + 1, "%s", s);
-            outlen = strlen(out);
-            free(s);
+            out += do_ucs4toutf8(c);
             c += 5;
         } else {
-            out = (char*)realloc(out, outlen + 2);
-            out[outlen] = *c;
-            out[outlen + 1] = '\0';
-            outlen++;
+            out += *c ;
             continue;
         }
     }
-
-    std::string ret = out;
-    free(out);
-    return ret;
+    return out;
 }
 
 static void upcase_string(char *str, int len)
@@ -368,235 +354,6 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
     /* OK, seems like every is OK */
     lwqq_puts(buf);
     return buf;
-}
-
-/**
- * Get the result object in a json object.
- *
- * @param str
- *
- * @return result object pointer on success, else NULL on failure.
- */
-static json_t *get_result_json_object(json_t *json)
-{
-    json_t *json_tmp;
-    char *value;
-
-    /**
-     * Frist, we parse retcode that indicate whether we get
-     * correct response from server
-     */
-    value = json_parse_simple_value(json, "retcode");
-    if (!value || strcmp(value, "0")) {
-        return NULL;
-    }
-
-    /**
-     * Second, Check whether there is a "result" key in json object
-     */
-    json_tmp = json_find_first_label_all(json, "result");
-    if (!json_tmp) {
-        return NULL;
-    }
-
-    return json_tmp;
-}
-
-static LwqqMsgType parse_recvmsg_type(json_t *json)
-{
-    LwqqMsgType type = LWQQ_MT_UNKNOWN;
-    char *msg_type = json_parse_simple_value(json, "poll_type");
-    if (!msg_type) {
-        return type;
-    }
-    if (!strncmp(msg_type, "message", strlen("message"))) {
-        type = LWQQ_MT_BUDDY_MSG;
-    } else if (!strncmp(msg_type, "group_message", strlen("group_message"))) {
-        type = LWQQ_MT_GROUP_MSG;
-    }else if(!strncmp(msg_type,"discu_message",strlen("discu_message"))){
-        type = LWQQ_MT_DISCU_MSG;
-    }else if(!strncmp(msg_type,"sess_message",strlen("sess_message"))){
-        type = LWQQ_MT_SESS_MSG;
-    } else if (!strncmp(msg_type, "buddies_status_change",
-                        strlen("buddies_status_change"))) {
-        type = LWQQ_MT_STATUS_CHANGE;
-    } else if(!strncmp(msg_type,"kick_message",strlen("kick_message"))){
-        type = LWQQ_MT_KICK_MESSAGE;
-    } else if(!strncmp(msg_type,"system_message",strlen("system_message"))){
-        type = LWQQ_MT_SYSTEM;
-    }else if(!strncmp(msg_type,"buddylist_change",strlen("buddylist_change"))){
-        type = LWQQ_MT_BLIST_CHANGE;
-    }else if(!strncmp(msg_type,"sys_g_msg",strlen("sys_g_msg"))){
-        type = LWQQ_MT_SYS_G_MSG;
-    }else if(!strncmp(msg_type,"push_offfile",strlen("push_offfile"))){
-        type = LWQQ_MT_OFFFILE;
-    }else if(!strncmp(msg_type,"filesrv_transfer",strlen("filesrv_transfer"))){
-        type = LWQQ_MT_FILETRANS;
-    }else if(!strncmp(msg_type,"file_message",strlen("file_message"))){
-        type = LWQQ_MT_FILE_MSG;
-    }else if(!strncmp(msg_type,"notify_offfile",strlen("file_message"))){
-        type = LWQQ_MT_NOTIFY_OFFFILE;
-    }else if(!strncmp(msg_type,"input_notify",strlen("input_notify"))){
-        type = LWQQ_MT_INPUT_NOTIFY;
-    }else
-        type = LWQQ_MT_UNKNOWN;
-    return type;
-}
-
-static int parse_content(json_t *json, void *opaque)
-{
-    json_t *tmp, *ctent;
-    LwqqMsgMessage *msg =(LwqqMsgMessage *) opaque;
-
-    tmp = json_find_first_label_all(json, "content");
-    if (!tmp || !tmp->child || !tmp->child) {
-        return -1;
-    }
-    tmp = tmp->child->child;
-    for (ctent = tmp; ctent != NULL; ctent = ctent->next) {
-        if (ctent->type == JSON_ARRAY) {
-            /* ["font",{"size":10,"color":"000000","style":[0,0,0],"name":"\u5B8B\u4F53"}] */
-            char *buf;
-            /* FIXME: ensure NULL access */
-            buf = ctent->child->text;
-            if (!strcmp(buf, "font")) {
-                const char *name, *color, *size;
-                int sa, sb, sc;
-                /* Font name */
-                name = json_parse_simple_value(ctent, "name");
-                name = name ?: "Arial";
-                msg->f_name = ucs4toutf8(name);
-
-                /* Font color */
-                color = json_parse_simple_value(ctent, "color");
-                msg->f_color = color ?: "000000";
-
-                /* Font size */
-                size = json_parse_simple_value(ctent, "size");
-                size = size ?: "12";
-                msg->f_size = atoi(size);
-
-                /* Font style: style":[0,0,0] */
-                tmp = json_find_first_label_all(ctent, "style");
-                if (tmp) {
-                    json_t *style = tmp->child->child;
-                    const char *stylestr = style->text;
-                    sa = (int)strtol(stylestr, NULL, 10);
-                    style = style->next;
-                    stylestr = style->text;
-                    sb = (int)strtol(stylestr, NULL, 10);
-                    style = style->next;
-                    stylestr = style->text;
-                    sc = (int)strtol(stylestr, NULL, 10);
-                } else {
-                    sa = 0;
-                    sb = 0;
-                    sc = 0;
-                }
-                msg->f_style.b = sa;
-                msg->f_style.i = sb;
-                msg->f_style.u = sc;
-            } else if (!strcmp(buf, "face")) {
-                /* ["face", 107] */
-                /* FIXME: ensure NULL access */
-                int facenum = (int)strtol(ctent->child->next->text, NULL, 10);
-                LwqqMsgContent c;
-                c.type =  LwqqMsgContent::LWQQ_CONTENT_FACE;
-                c.data.face = facenum; 
-                msg->content.push_back(c);
-            } else if(!strcmp(buf, "offpic")) {
-                //["offpic",{"success":1,"file_path":"/d65c58ae-faa6-44f3-980e-272fb44a507f"}]
-                LwqqMsgContent c;
-                c.type = LwqqMsgContent::LWQQ_CONTENT_OFFPIC;
-                c.data.img.success = atoi(json_parse_simple_value(ctent,"success"));
-                c.data.img.file_path = strdup(json_parse_simple_value(ctent,"file_path"));
-                msg->content.push_back(c);
-            } else if(!strcmp(buf,"cface")){
-                //["cface",{"name":"0C3AED06704CA9381EDCC20B7F552802.jPg","file_id":914490174,"key":"YkC3WaD3h5pPxYrY","server":"119.147.15.201:443"}]
-                //["cface","0C3AED06704CA9381EDCC20B7F552802.jPg",""]
-                LwqqMsgContent c;
-                c.type = LwqqMsgContent::LWQQ_CONTENT_CFACE;
-                c.data.cface.name = strdup(json_parse_simple_value(ctent,"name"));
-                if(c.data.cface.name!=NULL){
-                    c.data.cface.file_id = strdup(json_parse_simple_value(ctent,"file_id"));
-                    c.data.cface.key = strdup(json_parse_simple_value(ctent,"key"));
-                    char* server = strdup(json_parse_simple_value(ctent,"server"));
-                    char* split = strchr(server,':');
-                    strncpy(c.data.cface.serv_ip,server,split-server);
-                    strncpy(c.data.cface.serv_port,split+1,strlen(split+1));
-                }else{
-                    c.data.cface.name = strdup(ctent->child->next->text);
-                }
-                msg->content.push_back(c);
-            }
-        } else if (ctent->type == JSON_STRING) {
-            LwqqMsgContent c;
-            c.type = LwqqMsgContent::LWQQ_CONTENT_STRING;
-            c.data.str = json_unescape(ctent->text);
-            msg->content.push_back(c);
-        }
-    }
-
-    /* Make msg valid */
-    if (msg->f_name.empty() || msg->f_color.empty() || msg->content.empty()) {
-        return -1;
-    }
-    if (msg->f_size < 8) {
-        msg->f_size = 8;
-    }
-
-    return 0;
-}
-
-/**
- * {"poll_type":"message","value":{"msg_id":5244,"from_uin":570454553,
- * "to_uin":75396018,"msg_id2":395911,"msg_type":9,"reply_ip":176752041,
- * "time":1339663883,"content":[["font",{"size":10,"color":"000000",
- * "style":[0,0,0],"name":"\u5B8B\u4F53"}],"hello\n "]}}
- * 
- * @param json
- * @param opaque
- * 
- * @return
- */
-static int parse_new_msg(json_t *json, void *opaque)
-{
-    LwqqMsgMessage *msg = (LwqqMsgMessage*)opaque;
-    const char *time;
-    
-    msg->from = strdup(json_parse_simple_value(json, "from_uin"));
-    if (!msg->from) {
-        return -1;
-    }
-
-    time = json_parse_simple_value(json, "time");
-    time = time ?: "0";
-    msg->time = (time_t)strtoll(time, NULL, 10);
-    msg->to = strdup(json_parse_simple_value(json, "to_uin"));
-    msg->msg_id = strdup(json_parse_simple_value(json,"msg_id"));
-    msg->msg_id2 = atoi(json_parse_simple_value(json, "msg_id2"));
-
-    //if it failed means it is not group message.
-    //so it equ NULL.
-    if(msg->type == LWQQ_MT_GROUP_MSG){
-        msg->group.send = strdup(json_parse_simple_value(json, "send_uin"));
-        msg->group.group_code = strdup(json_parse_simple_value(json,"group_code"));
-    }else if(msg->type == LWQQ_MT_SESS_MSG){
-        msg->sess.id = strdup(json_parse_simple_value(json,"id"));
-    }else if(msg->type == LWQQ_MT_DISCU_MSG){
-        msg->discu.send = strdup(json_parse_simple_value(json, "send_uin"));
-        msg->discu.did = strdup(json_parse_simple_value(json,"did"));
-    }
-
-    if (!msg->to) {
-        return -1;
-    }
-    
-    if (parse_content(json, opaque)) {
-        return -1;
-    }
-
-    return 0;
 }
 
 // build webqq and setup defaults
@@ -877,120 +634,27 @@ void webqq::cb_online_status(read_streamptr stream, char* response, const boost:
 
 void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std::size_t length)
 {
+	response[length]=0;
 	defer(boost::bind(operator delete, response));
 	//开启新的 poll	
 	do_poll_one_msg();
-	
-	//处理！
-	std::cout << response <<  std::endl;
 
+	pt::ptree	jsonobj;
+	std::stringstream jsondata;
+	jsondata <<  response;
 
-	const char* retcode_str;
-	int ret;
-    int retcode = 0;
-    json_t *json = NULL, *json_tmp, *cur;
+	//处理!
+	try{
+		pt::json_parser::read_json(jsondata, jsonobj);
+		process_msg(jsonobj);
+	}catch (const pt::json_parser_error & jserr){
+		printf("parse json error :  %s\n", response);
+	}
+}
 
-    ret = json_parse_document(&json, (char *)response);
-    if (!json)
-		return ;
-
-	defer(boost::bind(json_free_value, &json));
-
-    char* dbg_str = json_unescape((char*)response);
-    lwqq_puts(dbg_str);
-    free(dbg_str);
-    
-    if (ret != JSON_OK) {
-        lwqq_log(LOG_ERROR, "Parse json object of friends error: %s\n", response);
-        return;
-    }
-    retcode_str = json_parse_simple_value(json,"retcode");
-    if(retcode_str)
-        retcode = atoi(retcode_str);
-
-    json_tmp = get_result_json_object(json);
-    if (!json_tmp) {
-        lwqq_log(LOG_ERROR, "Parse json object error: %s\n", response);
-        return;
-    }
-
-    if (!json_tmp->child || !json_tmp->child->child) {
-        return;
-    }
-
-    /* make json_tmp point to first child of "result" */
-    json_tmp = json_tmp->child->child_end;
-    for (cur = json_tmp; cur != NULL; cur = cur->previous) {
-		int ret;
-		LwqqMsgType msg_type = parse_recvmsg_type(cur);
-
-		LwqqMsg msg(msg_type);
-//         LwqqAsyncEvset* ev;
-//         if (!msg) {
-//             continue;
-//         }
-
-        switch (msg_type) {
-        case LWQQ_MT_BUDDY_MSG:
-        case LWQQ_MT_GROUP_MSG:
-        case LWQQ_MT_DISCU_MSG:
-        case LWQQ_MT_SESS_MSG:
-			lwqq_log(LOG_DEBUG, "group_message\n");
-            ret = parse_new_msg(cur, msg.opaque);
-//             ev = lwqq_msg_request_picture(list->lc, (int)msg->type,(LwqqMsgMessage*) msg->opaque);
-//             if(ev){
-//                 ret = -1;
-//                 void **d = (void**) s_malloc0(sizeof(void*)*2);
-//                 d[0] = list;
-//                 d[1] = msg;
-//                 lwqq_async_add_evset_listener(ev,insert_msg_delay_by_request_content,d);
-//                 //this jump the case
-//                 continue;
-// 			}
-            break;
-        case LWQQ_MT_STATUS_CHANGE:
-//             ret = parse_status_change(cur, msg->opaque);
-            break;
-        case LWQQ_MT_KICK_MESSAGE:
-//             ret = parse_kick_message(cur,msg->opaque);
-            break;
-        case LWQQ_MT_SYSTEM:
-//             ret = parse_system_message(cur,msg->opaque,list->lc);
-            break;
-        case LWQQ_MT_BLIST_CHANGE:
-//             ret = parse_blist_change(cur,msg->opaque,list->lc);
-            break;
-        case LWQQ_MT_SYS_G_MSG:
-//             ret = parse_sys_g_msg(cur,msg->opaque);
-            break;
-        case LWQQ_MT_OFFFILE:
-//             ret = parse_push_offfile(cur,msg->opaque);
-            break;
-        case LWQQ_MT_FILETRANS:
-//             ret = parse_file_transfer(cur,msg->opaque);
-            break;
-        case LWQQ_MT_FILE_MSG:
-//             ret = parse_file_message(cur,msg->opaque);
-            break;
-        case LWQQ_MT_NOTIFY_OFFFILE:
-//             ret = parse_notify_offfile(cur,msg->opaque);
-            break;
-        case LWQQ_MT_INPUT_NOTIFY:
-//             ret = parse_input_notify(cur,msg->opaque);
-            break;
-        default:
-            ret = -1;
-            lwqq_log(LOG_ERROR, "No such message type\n");
-            break;
-        }
-
-        if (ret == 0) {
-//             insert_recv_msg_with_order(list,msg);
-			sigmessage(msg);
-        } else {
-//             lwqq_msg_free(msg);
-        }
-    }
+void webqq::process_msg(boost::property_tree::ptree jstree)
+{
+	pt::json_parser::write_json(std::cout, jstree);
 }
 
 void webqq::cb_get_version(read_streamptr stream, const boost::system::error_code& ec)

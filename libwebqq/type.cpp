@@ -47,36 +47,36 @@ LwqqMsg::LwqqMsg(qq::LwqqMsgType type)
         mmsg->type = type;
         this->opaque = mmsg;
         break;
-    case LWQQ_MT_STATUS_CHANGE:
-        this->opaque = malloc(sizeof(LwqqMsgStatusChange));
-        break;
-    case LWQQ_MT_KICK_MESSAGE:
-        this->opaque = malloc(sizeof(LwqqMsgKickMessage));
-        break;
-    case LWQQ_MT_SYSTEM:
-        this->opaque = malloc(sizeof(LwqqMsgSystem));
-        break;
-    case LWQQ_MT_BLIST_CHANGE:
-        this->opaque = malloc(sizeof(LwqqMsgBlistChange));
-        break;
-    case LWQQ_MT_SYS_G_MSG:
-        this->opaque = malloc(sizeof(LwqqMsgSysGMsg));
-        break;
-    case LWQQ_MT_OFFFILE:
-        this->opaque = malloc(sizeof(LwqqMsgOffFile));
-        break;
-    case LWQQ_MT_FILETRANS:
-        this->opaque = malloc(sizeof(LwqqMsgFileTrans));
-        break;
-    case LWQQ_MT_FILE_MSG:
-        this->opaque = malloc(sizeof(LwqqMsgFileMessage));
-        break;
-    case LWQQ_MT_NOTIFY_OFFFILE:
-        this->opaque = malloc(sizeof(LwqqMsgNotifyOfffile));
-        break;
-    case LWQQ_MT_INPUT_NOTIFY:
-        this->opaque = malloc(sizeof(LwqqMsgInputNotify));
-        break;
+//     case LWQQ_MT_STATUS_CHANGE:
+//         this->opaque = malloc(sizeof(LwqqMsgStatusChange));
+//         break;
+//     case LWQQ_MT_KICK_MESSAGE:
+//         this->opaque = malloc(sizeof(LwqqMsgKickMessage));
+//         break;
+//     case LWQQ_MT_SYSTEM:
+//         this->opaque = malloc(sizeof(LwqqMsgSystem));
+//         break;
+//     case LWQQ_MT_BLIST_CHANGE:
+//         this->opaque = malloc(sizeof(LwqqMsgBlistChange));
+//         break;
+//     case LWQQ_MT_SYS_G_MSG:
+//         this->opaque = malloc(sizeof(LwqqMsgSysGMsg));
+//         break;
+//     case LWQQ_MT_OFFFILE:
+//         this->opaque = malloc(sizeof(LwqqMsgOffFile));
+//         break;
+//     case LWQQ_MT_FILETRANS:
+//         this->opaque = malloc(sizeof(LwqqMsgFileTrans));
+//         break;
+//     case LWQQ_MT_FILE_MSG:
+//         this->opaque = malloc(sizeof(LwqqMsgFileMessage));
+//         break;
+//     case LWQQ_MT_NOTIFY_OFFFILE:
+//         this->opaque = malloc(sizeof(LwqqMsgNotifyOfffile));
+//         break;
+//     case LWQQ_MT_INPUT_NOTIFY:
+//         this->opaque = malloc(sizeof(LwqqMsgInputNotify));
+//         break;
     default:
         lwqq_log(LOG_ERROR, "No such message type\n");
         break;
