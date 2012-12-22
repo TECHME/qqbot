@@ -503,6 +503,11 @@ void webqq::cb_online_status(read_streamptr stream, char* response, const boost:
 	std::cout <<  response << std::endl;
 	//psessionid
 	json_error ret = json_parse_document(&json, response);
+	if (!json)
+	 return;
+	
+	defer(boost::bind(json_free_value, &json));
+	
 	char* value = json_parse_simple_value(json, "retcode");
 	psessionid = json_parse_simple_value(json, "psessionid");
 	//start polling messages!
