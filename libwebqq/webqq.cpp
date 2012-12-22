@@ -27,6 +27,7 @@
 extern "C"{
 #include "logger.h"
 #include "md5.h"
+#include "json.h"
 };
 
 using namespace qq;
@@ -433,14 +434,38 @@ void webqq::cb_done_login(read_streamptr stream, char* response, const boost::sy
     }
 
     //set_online_status(lc, lwqq_status_to_str(lc->stat), err);
-    if (status = LWQQ_STATUS_ONLINE){
+    if (status == LWQQ_STATUS_ONLINE){
 		siglogin();
 	}
 	clientid = generate_clientid();
-	//start polling messages!
 
-	//change status
-	do_poll_one_msg();
+	//change status,  this is the last step for login
+	set_online_status();
+}
+
+void webqq::set_online_status()
+{
+	std::string msg = boost::str(
+		boost::format("{\"status\":\"%s\",\"ptwebqq\":\"%s\","
+             "\"passwd_sig\":""\"\",\"clientid\":\"%s\""
+             ", \"psessionid\":null}")
+		% lwqq_status_to_str(status)
+		% cookies.ptwebqq
+		% clientid
+	);
+
+	std::string buf = url_encode(msg.c_str());
+	msg = boost::str(boost::format("r=%s") % buf);
+
+    read_streamptr stream(new urdl::read_stream(io_service));
+	stream->set_option(urdl::http::cookie(cookies.lwcookies));
+	stream->set_option(urdl::http::cookie2("$Version=1"));
+	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+	stream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
+	stream->set_option(urdl::http::request_content(msg));
+	stream->set_option(urdl::http::request_method("POST"));
+
+	stream->async_open(LWQQ_URL_SET_STATUS,boost::bind(&webqq::cb_online_status,this, stream, boost::asio::placeholders::error()) );
 }
 
 void webqq::do_poll_one_msg()
@@ -450,25 +475,39 @@ void webqq::do_poll_one_msg()
 		boost::format("%s/channel/poll2") % "http://d.web2.qq.com"
 	);
 	
-	std::string postcontent = boost::str(
+	std::string msg = boost::str(
 		boost::format("{\"clientid\":\"%s\",\"psessionid\":\"%s\"}")
 		% clientid 
 		% psessionid		
 	);
-	
-//     s = url_encode(msg);
-//     snprintf(msg, sizeof(msg), "r=%s", s);
-//     s_free(s);
-// 
 
-    read_streamptr loginstream(new urdl::read_stream(io_service));
-	loginstream->set_option(urdl::http::cookie(cookies.lwcookies));
-	loginstream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
-	loginstream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
+	msg = boost::str(boost::format("r=%s") %  url_encode(msg.c_str()));
 
-	loginstream->async_open(url,boost::bind(&webqq::cb_poll_msg,this, loginstream, boost::asio::placeholders::error()) );
+    read_streamptr pollstream(new urdl::read_stream(io_service));
+	pollstream->set_option(urdl::http::cookie(cookies.lwcookies));
+	pollstream->set_option(urdl::http::cookie2("$Version=1"));
+	pollstream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+	pollstream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
+	pollstream->set_option(urdl::http::request_content(msg));
+	pollstream->set_option(urdl::http::request_method("POST"));
+
+	pollstream->async_open(url,boost::bind(&webqq::cb_poll_msg,this, pollstream, boost::asio::placeholders::error()) );
 }
 
+void webqq::cb_online_status(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
+{
+    json_t *json = NULL;
+
+	defer(boost::bind(operator delete, response));
+
+	std::cout <<  response << std::endl;
+	//psessionid
+	json_error ret = json_parse_document(&json, response);
+	char* value = json_parse_simple_value(json, "retcode");
+	psessionid = json_parse_simple_value(json, "psessionid");
+	//start polling messages!
+	do_poll_one_msg();
+}
 
 void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std::size_t length)
 {
@@ -483,14 +522,14 @@ void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std
 void webqq::cb_get_version(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[1024];
-	stream->async_read_some(boost::asio::buffer(data, 1024),
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 1024),
 		boost::bind(&webqq::cb_got_version, this, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[1024];
-	stream->async_read_some(boost::asio::buffer(data, 1024),
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 1024),
 		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
@@ -498,13 +537,35 @@ void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec
 void webqq::cb_do_login(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[8192];
-	stream->async_read_some(boost::asio::buffer(data, 8192),
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
 		boost::bind(&webqq::cb_done_login, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
+}
+
+void webqq::cb_online_status(read_streamptr stream, const boost::system::error_code& ec)
+{
+	char * data = new char[8192];
+	memset(data, 0, 8192);
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
+		boost::bind(&webqq::cb_online_status, this, stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[16384];
-	stream->async_read_some(boost::asio::buffer(data, 16384),
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
 		boost::bind(&webqq::cb_poll_msg, this, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
+}
+
+std::string webqq::lwqq_status_to_str(LWQQ_STATUS status)
+{
+    switch(status){
+        case LWQQ_STATUS_ONLINE: return "online";break;
+        case LWQQ_STATUS_OFFLINE: return "offline";break;
+        case LWQQ_STATUS_AWAY: return "away";break;
+        case LWQQ_STATUS_HIDDEN: return "hidden";break;
+        case LWQQ_STATUS_BUSY: return "busy";break;
+        case LWQQ_STATUS_CALLME: return "callme";break;
+        case LWQQ_STATUS_SLIENT: return "slient";break;
+        default: return "unknow";break;
+    }
 }

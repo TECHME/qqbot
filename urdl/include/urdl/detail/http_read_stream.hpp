@@ -90,6 +90,9 @@ public:
       = options_.get_option<urdl::http::request_referer>().value();
     std::string cookie
       = options_.get_option<urdl::http::cookie>().value();
+	std::string cookie2
+	  = options_.get_option<urdl::http::cookie2>().value();
+		  
     // Form the request. We specify the "Connection: close" header so that the
     // server will close the socket after transmitting the response. This will
     // allow us to treat all data up until the EOF as the content.
@@ -116,7 +119,9 @@ public:
 	}
     if (cookie.length())
 		request_stream << "Cookie: " <<  cookie <<  "\r\n";
-    if (user_agent.length())
+    if (cookie2.length())
+		request_stream << "Cookie2: " <<  cookie2 <<  "\r\n";
+	if (user_agent.length())
       request_stream << "User-Agent: " << user_agent << "\r\n";
     request_stream << "Connection: close\r\n\r\n";
     request_stream << request_content;
@@ -246,6 +251,8 @@ public:
 		  = options_.get_option<urdl::http::request_referer>().value();
 		std::string cookie
 		  = options_.get_option<urdl::http::cookie>().value();
+		std::string cookie2
+		  = options_.get_option<urdl::http::cookie2>().value();
         std::string user_agent
           = options_.get_option<urdl::http::user_agent>().value();
 
@@ -278,6 +285,8 @@ public:
 		}
 		if (cookie.length())
 		  request_stream << "Cookie: " <<  cookie <<  "\r\n";
+		if (cookie2.length())
+		  request_stream << "Cookie2: " <<  cookie2 <<  "\r\n";
 		if (user_agent.length())
           request_stream << "User-Agent: " << user_agent << "\r\n";
         request_stream << "Connection: close\r\n\r\n";

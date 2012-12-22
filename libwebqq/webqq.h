@@ -92,18 +92,19 @@ public:
 	void send_simple_message( );
 
 public:// signals
-	//登录成功激发
+	// 登录成功激发.
 	boost::signal< void ()> siglogin;
-	//验证码, 需要返回验证码。图片内容在 const_buffer
+	// 验证码, 需要返回验证码。图片内容在 const_buffer
 	boost::signal< std::string ( boost::asio::const_buffer )> signeedvc;
-	//断线的时候激发
+	// 断线的时候激发.
 	boost::signal< void ()> sigoffline;
 
-	//发生错误的时候激发, 返回 false 停止登录，停止发送，等等操作。true则重试
+	// 发生错误的时候激发, 返回 false 停止登录，停止发送，等等操作。true则重试.
 	boost::signal< bool (int stage, int why)> sigerror;
 	
-	//有群消息的时候激发
+	// 有群消息的时候激发.
 	boost::signal< void ( qq::message)> siggroupmessage;
+	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:
 	void cb_get_version(read_streamptr stream, const boost::system::error_code& ec);
@@ -114,6 +115,12 @@ private:
 
 	void cb_do_login(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_done_login(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
+
+	//last step for login
+	void set_online_status();
+	void cb_online_status(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_online_status(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
+
 	
 	void do_poll_one_msg();
 	void cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec);
