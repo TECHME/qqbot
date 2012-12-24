@@ -13,7 +13,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
+// #include <unistd.h>
 #include "logger.h"
 
 static char *levels[] = {
@@ -46,7 +46,7 @@ void lwqq_log(int level, const char *file, int line,
 	strftime(date, sizeof(date), "%b %e %T", tm);
 	
     if(level > 1)
-	snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level], (long)getpid(), file, line, function);
+	sprintf(buf, "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level], (long)getpid(), file, line, function);
 
 	buf_used = strlen(buf);
 	va_start (va, msg);

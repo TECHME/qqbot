@@ -12,7 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <iconv.h>
+// #include <iconv.h>
 
 #include "url.hpp"
 
@@ -41,7 +41,7 @@ std::string url_encode(const char *str)
     if (!str)
         return "";
 	
-	char buf[strlen(str) * 3 + 1];    
+	char *buf = new char[strlen(str) * 3 + 1];
     char *pstr = (char*) str, *pbuf = buf;
     
     while (*pstr) {
@@ -52,13 +52,17 @@ std::string url_encode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret(buf);
+	delete[] buf;
+    return ret;
 }
+
 std::string url_whole_encode(const char *str)
 {
     if (!str)
         return NULL;
-    char buf[strlen(str) * 3 + 1];
+
+	char *buf = new char[strlen(str) * 3 + 1];
     char *pstr = (char*)str, *pbuf = buf;
     while (*pstr) {
         if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~' ||*pstr == ':' ||*pstr == '/'
@@ -69,7 +73,9 @@ std::string url_whole_encode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret(buf);
+	delete[] buf;
+	return ret;
 }
 
 /** 
@@ -84,8 +90,8 @@ std::string url_decode(const char *str)
     if (!str) {
         return NULL;
     }
-    char buf[strlen(str) * 3 + 1];
 
+    char *buf = new char[strlen(str) * 3 + 1];
     char *pstr = (char*)str, *pbuf = buf;
     while (*pstr) {
         if (*pstr == '%') {
@@ -101,7 +107,9 @@ std::string url_decode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret(buf);
+	delete[] buf;
+	return ret;
 }
 /*
 char* to_gbk(char* utf8)

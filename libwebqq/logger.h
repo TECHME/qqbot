@@ -14,7 +14,7 @@
 
 #define _FILE_NAME_ (strrchr(__FILE__,'/')?strrchr(__FILE__,'/')+1:__FILE__)
 
-#define _A_ _FILE_NAME_, __LINE__, __PRETTY_FUNCTION__
+#define _A_ _FILE_NAME_, __LINE__, __FUNCTION__
 #define _LOG_DEBUG		0
 #define LOG_DEBUG		_LOG_DEBUG, _A_
 

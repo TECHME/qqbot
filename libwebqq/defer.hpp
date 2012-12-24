@@ -25,27 +25,19 @@
 */
 #pragma once
 
-// 是否开启了c++11编译器.
-#if __cplusplus >=201103
-#include <functional>
-#else
-// 否则使用 std::tr1.
-#include <tr1/functional>
-namespace std{
-	// 导入 std 名称空间.
-	using namespace std::tr1;
-};
-#endif
+#include <boost/noncopyable.hpp>
+#include <boost/function.hpp>
 
 namespace detail{
-class defer
+
+class defer : public boost::noncopyable
 {
 	defer();
 	defer( defer & );
 	defer( const defer & );
 	defer & operator = (const defer &);
 public:
-	defer(std::function<void()> __defer){
+	defer(boost::function<void()> __defer){
 		_defer = __defer;
 	}
 	~defer(){
@@ -56,7 +48,7 @@ public:
 	};
 private:
 	static void dumy(){}
-	std::function<void()>	_defer;
+	boost::function<void()>	_defer;
 };
 
 };
