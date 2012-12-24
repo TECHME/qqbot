@@ -19,8 +19,9 @@
 #include <urdl/read_stream.hpp>
 #include <urdl/http.hpp>
 #include <boost/format.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/foreach.hpp>
+#include <boost/property_tree/json_parser.hpp>
+namespace js = boost::property_tree::json_parser;
 
 #include "webqq.h"
 #include "defer.hpp"
@@ -629,6 +630,7 @@ void webqq::cb_online_status(read_streamptr stream, char* response, const boost:
 	char* value = json_parse_simple_value(json, "retcode");
 	psessionid = json_parse_simple_value(json, "psessionid");
 	//start polling messages, 2 connections!
+	lwqq_log(LOG_DEBUG, "start polling messages\n");
 	do_poll_one_msg();
 	do_poll_one_msg();
 }
@@ -644,6 +646,7 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 		return ;
 	}
 	if (ec != boost::asio::error::eof){
+		delete response;
 		return ;
 	}
 	goten += length;
@@ -653,8 +656,8 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 	//开启新的 poll	
 	do_poll_one_msg();
 
-	pt::ptree	jsonobj;
-	std::stringstream jsondata;
+	pt::wptree	jsonobj;
+	std::wstringstream jsondata;
 	jsondata <<  response;
 
 	//处理!
@@ -666,21 +669,21 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 	}
 }
 
-void webqq::process_msg(pt::ptree jstree)
+void webqq::process_msg(pt::wptree jstree)
 {
-	pt::json_parser::write_json(std::cout, jstree);
 	//TODO,  在这里解析json数据。
-	std::string retcode =  jstree.get<std::string>("retcode");
+	std::wstring retcode =  jstree.get<std::wstring>(L"retcode");
 	try{
-		BOOST_FOREACH(pt::ptree::value_type result, jstree.get_child("result"))
+		BOOST_FOREACH(pt::wptree::value_type result, jstree.get_child(L"result"))
 		{
-			std::string polltype = result.second.get<std::string>("poll_type");
+			std::wstring polltype = result.second.get<std::wstring>(L"poll_type");
 
-			if (polltype == "group_message")
-				siggroupmessage(result.second.get_child("value"));
+			if (polltype == L"group_message")
+				siggroupmessage(result.second.get_child(L"value"));
 		}
 	}
 	catch (const pt::ptree_bad_path & badpath){
+	 	pt::json_parser::write_json(std::wcout, jstree);
 	}
 }
 
