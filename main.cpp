@@ -476,9 +476,8 @@ static void qqbot_control(const std::string msg)
 {
 	boost::regex ex("(.*)?说：(.*)");
 	boost::cmatch what;
-	std::string cmd = msg;
 
-	if(boost::regex_match(cmd.c_str(), what, ex))
+	if(boost::regex_match(msg.c_str(), what, ex))
 	{
 		std::string name = what[1];
 		if (name == "水手(Jack)" || name == "Cai==天马博士")
@@ -536,10 +535,10 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 							% c->data.cface.name);
 					lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
 				}
-				buf += boost::str(boost::format(
-						"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
-						% c->data.cface.name);
 			}
+			buf += boost::str(boost::format(
+				"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
+				% c->data.cface.name);
 
 		} else {
 				printf ("Receive face msg: %d\n", c->data.face);
