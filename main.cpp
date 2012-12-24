@@ -168,6 +168,7 @@ private:
 };
 
 static qqlog logfile;
+static bool resend_img = false;
 
 static int help_f(int argc, char **argv);
 static int quit_f(int argc, char **argv);
@@ -469,6 +470,29 @@ static void irc_message_got(const IrcMsg pMsg)
 {
 }
 
+// 简单的消息命令控制.
+static void qqbot_control(const std::string msg)
+{
+	boost::regex ex("(.*)?说：(.*)");
+	boost::cmatch what;
+
+	if(boost::regex_match(cmd.c_str(), what, ex))
+	{
+		std::string name = what[1];
+		if (name == "水手(Jack)" || name == "Cai==天马博士")
+		{
+			std::string cmd = what[2];
+			if (cmd == ".stop resend img")
+			{
+				resend_img = false;
+			}
+			else if (cmd == ".start resend img")
+			{
+				resend_img = true;
+			}
+		}
+	}
+}
 
 //TODO
 //将聊天信息写入日志文件！
@@ -482,38 +506,40 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
 			
 			std::string datastr = c->data.str;
-			if (!datastr.empty()){
+			if (!datastr.empty()) {
 				boost::replace_all(datastr, "&", "&amp;");
 				boost::replace_all(datastr, "<", "&lt;");
 				boost::replace_all(datastr, ">", "&gt;");
 				boost::replace_all(datastr, "  ", "&nbsp;");
 			}
 			buf += datastr;			
-		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC){
+		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC) {
 			printf ("Receive picture msg: %s\n", c->data.img.file_path);
-		}else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
+		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE) {
 
-			LwqqGroup* group = lwqq_group_find_group_by_gid(lc, mmsg->from);
-			if (group){
-				const char * nick = mmsg->group.send;
-				LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-				if (by)
-					nick = by->nick;
-				
-				printf ("Receive cface msg: %s\n", c->data.cface.name);
-				printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
-				std::string url = 
-					boost::str(boost::format(
-						"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
-						% nick
+			if (resend_img) {
+				LwqqGroup* group = lwqq_group_find_group_by_gid(lc, mmsg->from);
+				if (group) {
+					const char * nick = mmsg->group.send;
+					LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
+					if (by)
+						nick = by->nick;
+
+					printf ("Receive cface msg: %s\n", c->data.cface.name);
+					printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
+
+					std::string url = boost::str(boost::format(
+							"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
+							% nick
+							% c->data.cface.name);
+					lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
+				}
+				buf += boost::str(boost::format(
+						"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
 						% c->data.cface.name);
-				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
 			}
-			buf += boost::str(boost::format(
-					"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
-					% c->data.cface.name);
 
-		}else {
+		} else {
 				printf ("Receive face msg: %d\n", c->data.face);
 				buf += boost::str(boost::format(
 					"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % c->data.face);
@@ -528,7 +554,13 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		if (by)
 			nick = by->nick;
 
+		// 构造消息.
 		std::string message = nick + "说：" + buf;
+
+		// qq消息控制.
+		qqbot_control(message);
+
+		// 保存到日志.
 		logfile.add_log(group->account, message);
 
 	} else {
