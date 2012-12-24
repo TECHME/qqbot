@@ -483,11 +483,12 @@ static void qqbot_control(const std::string msg)
 		if (name == "水手(Jack)" || name == "Cai==天马博士")
 		{
 			std::string cmd = what[2];
-			if (cmd == ".stop resend img")
+			boost::trim(cmd);
+			if (cmd == ".stop resend img ")
 			{
 				resend_img = false;
 			}
-			else if (cmd == ".start resend img")
+			else if (cmd == ".start resend img ")
 			{
 				resend_img = true;
 			}
