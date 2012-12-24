@@ -351,11 +351,11 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
 }
 
 // build webqq and setup defaults
-webqq::webqq(boost::asio::io_service& ios, std::string qq, std::string passwd, LWQQ_STATUS _status)
+webqq::webqq(boost::asio::io_service& ios, std::string qq, std::string passwd, LWQQ_STATUS status)
 	: m_io_service(ios)
 	, m_qqnum(qq)
 	, m_passwd(passwd)
-	, m_status(_status)
+	, m_status(status)
 {
 	//开始登录!
 
@@ -363,7 +363,7 @@ webqq::webqq(boost::asio::io_service& ios, std::string qq, std::string passwd, L
 	read_streamptr stream(new urdl::read_stream(m_io_service));
     lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
 
-	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream,  boost::asio::placeholders::error));	
+	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream, boost::asio::placeholders::error));	
 }
 
 void webqq::cb_got_version(char* response, const boost::system::error_code& ec, std::size_t length)
