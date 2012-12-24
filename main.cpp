@@ -5,6 +5,7 @@
  * 
  */
 
+#include <boost/regex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/date_time.hpp>
@@ -15,6 +16,7 @@ namespace po = boost::program_options;
 #include <boost/make_shared.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
+#include <boost/noncopyable.hpp>
 
 #include <fstream>
 #include <string.h>
@@ -36,8 +38,138 @@ extern "C" {
 
 #define QQBOT_VERSION "0.0.1"
 
-static boost::mutex												logfilemutex;
-static std::map<std::string, boost::shared_ptr<std::ofstream> >	logfilemap;
+class qqlog : public boost::noncopyable
+{
+public:
+	typedef boost::shared_ptr<std::ofstream> ofstream_ptr;
+	typedef std::map<std::string, ofstream_ptr> loglist;
+
+public:
+	qqlog() : m_path(".")
+	{}
+
+	~qqlog()
+	{}
+
+public:
+	// 设置日志保存路径.
+	void log_path(const std::string &path)
+	{
+		m_path = path;
+	}
+
+	// 添加日志消息.
+	bool add_log(const std::string &groupid, const std::string &msg)
+	{
+		boost::mutex::scoped_lock l(m_mutex);
+
+		// 在qq群列表中查找已有的项目, 如果没找到则创建一个新的.
+		loglist::iterator finder = m_group_list.find(groupid);
+		if (m_group_list.find(groupid) == m_group_list.end())
+		{
+			// 创建文件.
+			ofstream_ptr file_ptr = create_file(groupid);
+
+			m_group_list[groupid] = file_ptr;
+			finder = m_group_list.find(groupid);
+		}
+
+		// 如果没有找到日期对应的文件.
+		if (!fs::exists(fs::path(make_filename(make_path(groupid)))))
+		{
+			// 创建文件.
+			ofstream_ptr file_ptr = create_file(groupid);
+			if (finder->second->is_open())
+				finder->second->close();	// 关闭原来的文件.
+			// 重置为新的文件.
+			finder->second = file_ptr;
+		}
+
+		// 得到文件指针.
+		ofstream_ptr &file_ptr = finder->second;
+
+		// 构造消息, 添加消息时间头.
+		std::string data = "<p>" + current_time() + " " + msg + "</p>\n";
+		file_ptr->write(data.c_str(), data.length());
+		// 刷新写入缓冲, 实时写到文件.
+		file_ptr->flush();
+
+		return true;
+	}
+
+protected:
+
+	// 构造路径.
+	std::string make_path(const std::string &groupid) const
+	{
+		return (m_path / groupid).string();
+	}
+
+	// 构造文件名.
+	std::string make_filename(const std::string &p = "") const
+	{
+		std::ostringstream oss;
+		boost::posix_time::time_facet* _facet = new boost::posix_time::time_facet("%Y%m%d");
+		oss.imbue(std::locale(std::locale::classic(), _facet));
+		oss << boost::posix_time::second_clock::local_time();
+		std::string filename = (fs::path(p) / (oss.str() + ".html")).string();
+		return filename;
+	}
+
+	// 创建对应的日志文件, 返回日志文件指针.
+	ofstream_ptr create_file(const std::string &groupid) const
+	{
+		// 生成对应的路径.
+		std::string save_path = make_path(groupid);
+
+		// 如果不存在, 则创建目录.
+		if (!fs::exists(fs::path(save_path)))
+		{
+			if (!fs::create_directory(fs::path(save_path)))
+			{
+				std::cerr << "create directory " << save_path.c_str() << " failed!" << std::endl;
+				return ofstream_ptr();
+			}
+		}
+
+		// 按时间构造文件名.
+		save_path = make_filename(save_path);
+
+		// 创建文件.
+		ofstream_ptr file_ptr(new std::ofstream(save_path.c_str(), 
+			fs::exists(save_path) ? std::ofstream::app : std::ofstream::out));
+		if (file_ptr->bad() || file_ptr->fail())
+		{
+			std::cerr << "create file " << save_path.c_str() << " failed!" << std::endl;
+			return ofstream_ptr();
+		}
+
+		// 写入信息头.
+		std::string info = "<head><meta http-equiv=\"Content-Type\" content=\"text/plain; charset=UTF-8\">\n";
+		file_ptr->write(info.c_str(), info.length());
+
+		return file_ptr;
+	}
+
+	// 得到当前时间字符串, 对应printf格式: "%04d-%02d-%02d %02d:%02d:%02d"
+	std::string current_time() const
+	{
+		std::ostringstream oss;
+		boost::posix_time::time_facet* _facet = new boost::posix_time::time_facet("%Y-%m-%d %H:%M:%S%F");
+		oss.imbue(std::locale(std::locale::classic(), _facet));
+		oss << boost::posix_time::second_clock::local_time();
+		std::string time = oss.str();
+		return time;
+	}
+
+private:
+	boost::mutex m_mutex;
+	loglist m_group_list;
+	fs::path m_path;
+};
+
+static qqlog logfile;
+static bool resend_img = false;
 
 static int help_f(int argc, char **argv);
 static int quit_f(int argc, char **argv);
@@ -339,6 +471,29 @@ static void irc_message_got(const IrcMsg pMsg)
 {
 }
 
+// 简单的消息命令控制.
+static void qqbot_control(const std::string msg)
+{
+	boost::regex ex("(.*)?说：(.*)");
+	boost::cmatch what;
+
+	if(boost::regex_match(cmd.c_str(), what, ex))
+	{
+		std::string name = what[1];
+		if (name == "水手(Jack)" || name == "Cai==天马博士")
+		{
+			std::string cmd = what[2];
+			if (cmd == ".stop resend img")
+			{
+				resend_img = false;
+			}
+			else if (cmd == ".start resend img")
+			{
+				resend_img = true;
+			}
+		}
+	}
+}
 
 //TODO
 //将聊天信息写入日志文件！
@@ -352,65 +507,64 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
 			
 			std::string datastr = c->data.str;
-			if (!datastr.empty()){
+			if (!datastr.empty()) {
 				boost::replace_all(datastr, "&", "&amp;");
 				boost::replace_all(datastr, "<", "&lt;");
 				boost::replace_all(datastr, ">", "&gt;");
 				boost::replace_all(datastr, "  ", "&nbsp;");
 			}
 			buf += datastr;			
-		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC){
+		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC) {
 			printf ("Receive picture msg: %s\n", c->data.img.file_path);
-		}else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE){
-	  
-			boost::mutex::scoped_lock l(logfilemutex);
-			LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
-			if (group){
-				const char * nick = mmsg->group.send;
-				LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-				if (by)
-					nick = by->nick;
-				
-				printf ("Receive cface msg: %s\n", c->data.cface.name);
-				printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
-				std::string url = 
-					boost::str(boost::format(
-						"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
-						% nick
-						% c->data.cface.name);
-				lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
-			}
-			buf += boost::str(boost::format(
-					"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
-					% c->data.cface.name);
+		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE) {
 
-		}else {
+			if (resend_img) {
+				LwqqGroup* group = lwqq_group_find_group_by_gid(lc, mmsg->from);
+				if (group) {
+					const char * nick = mmsg->group.send;
+					LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
+					if (by)
+						nick = by->nick;
+
+					printf ("Receive cface msg: %s\n", c->data.cface.name);
+					printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
+
+					std::string url = boost::str(boost::format(
+							"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
+							% nick
+							% c->data.cface.name);
+					lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
+				}
+				buf += boost::str(boost::format(
+						"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
+						% c->data.cface.name);
+			}
+
+		} else {
 				printf ("Receive face msg: %d\n", c->data.face);
 				buf += boost::str(boost::format(
 					"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % c->data.face);
 		}
 	}
-	//log to disk file
-	//get gid
-	boost::mutex::scoped_lock l(logfilemutex);
 
+	// 写入到日志.
 	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
-	if (group){
+	if (group) {
 		const char * nick = mmsg->group.send;
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
 		if (by)
 			nick = by->nick;
-		
-		if (logfilemap.find(group->account) != logfilemap.end() && logfilemap[group->account]->is_open()){
-			// log to logfile
-			std::string messagetime = std::ctime(&mmsg->time);
-			*messagetime.rbegin()=0;
-			
-			*(std::ostream*)(logfilemap[group->account].get()) <<  "<p>" << messagetime <<  " " << nick <<  "说：" <<  buf <<  "</p>" << std::endl;
-						
-		}else
-			printf("Receive message: (%s:%s) (%s), %s\n", group->name, group->account , nick, buf.c_str());
-	}else{
+
+		// 构造消息.
+		std::string message = nick + "说：" + buf;
+
+		// qq消息控制.
+		qqbot_control(message);
+
+		// 保存到日志.
+		logfile.add_log(group->account, message);
+
+	} else {
 		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
 	}	
 }
@@ -490,48 +644,6 @@ static void recvmsg_thread(boost::shared_ptr<LwqqClient> lc)
 static void got_group_detail_info(LwqqAsyncEvent* event,void* data)
 {
 	LwqqGroup * group = (LwqqGroup*)data;
-
-	boost::mutex::scoped_lock l(logfilemutex);
-	// create log file
-	if (!logdir.empty()){//yes my lord, I will log messages
-		if (!fs::exists(fs::path(logdir) / group->account)){
-			if (!fs::create_directory(fs::path(logdir) / group->account)){
-				logdir.clear();
-				return ;
-			}
-		}
-		if (!fs::exists(fs::path(logdir) / group->name)){
-			fs::create_symlink(group->account, fs::path(logdir) / group->name);			
-		}
-
-		fs::path logfilepath(
-			fs::path(logdir) /
-			group->name /
-			boost::gregorian::to_iso_string(boost::gregorian::day_clock::local_day())
-		);
-
-		logfilepath =  fs::path(logfilepath.string() + ".html");
-
-		lwqq_log(LOG_DEBUG, "will open %s for log\n", logfilepath.c_str());
-		
-		bool havehead =  fs::exists(logfilepath);
-
-		std::ofstream * newlogfile = new std::ofstream(logfilepath.c_str(),
-						fs::exists(logfilepath)? std::ofstream::app : std::ofstream::out);
-
-		logfilemap.insert(
-			std::make_pair(
-				group->account, boost::shared_ptr<std::ofstream>(newlogfile)
-			)
-		);
-
-		if (!havehead){
-			//write html header
-			
-			*newlogfile << "<head><meta http-equiv=\"Content-Type\" content=\"text/plain; charset=UTF-8\">" <<  std::endl;
-	
-		}
-	}
 }
 
 static void get_group_detail_info(LwqqAsyncEvent* event,void* data)
@@ -617,7 +729,10 @@ int main(int argc, char *argv[])
 		if (!fs::exists(logdir))
 			fs::create_directory(logdir);
 	}
-	
+
+	// 设置日志自动记录目录.
+	logfile.log_path(logdir);
+
     /* Lanuch signal handler when user press down Ctrl-C in terminal */
     signal(SIGINT, signal_handler);
     if (isdaemon)
