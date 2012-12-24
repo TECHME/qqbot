@@ -484,11 +484,11 @@ static void qqbot_control(const std::string msg)
 		{
 			std::string cmd = what[2];
 			boost::trim(cmd);
-			if (cmd == ".stop resend img ")
+			if (cmd == ".stop resend img")
 			{
 				resend_img = false;
 			}
-			else if (cmd == ".start resend img ")
+			else if (cmd == ".start resend img")
 			{
 				resend_img = true;
 			}
