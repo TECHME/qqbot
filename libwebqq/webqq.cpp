@@ -647,7 +647,7 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 		return ;
 	}
 
-	response[length]=0;
+	response[goten]=0;
 	defer(boost::bind(operator delete, response));
 	//开启新的 poll	
 	do_poll_one_msg();
