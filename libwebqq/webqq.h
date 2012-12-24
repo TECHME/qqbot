@@ -335,7 +335,7 @@ public:// signals
 	boost::signal< bool (int stage, int why)> sigerror;
 	
 	// 有群消息的时候激发.
-	boost::signal< void ( const LwqqMsg & )> sigmessage;
+	boost::signal< void (const pt::ptree & )> siggroupmessage;
 	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:
@@ -356,7 +356,7 @@ private:
 
 	void do_poll_one_msg();
 	void cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_poll_msg(char * response, const boost::system::error_code& ec, std::size_t length);
+	void cb_poll_msg(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
 
 	void process_msg(pt::ptree jstree);
 

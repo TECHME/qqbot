@@ -766,10 +766,6 @@ private:
         boost::asio::ip::tcp::socket> > https_;
 #endif // !defined(URDL_DISABLE_SSL)
   enum { unknown, file, http, https } protocol_;
-public:
-  std::string get_httpheader(){
-	  return http_.headers_;
-  }
 };
 
 } // namespace urdl

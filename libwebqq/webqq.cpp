@@ -20,6 +20,7 @@
 #include <urdl/http.hpp>
 #include <boost/format.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/foreach.hpp>
 
 #include "webqq.h"
 #include "defer.hpp"
@@ -445,7 +446,7 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
         vc.str = s;
 
         /* We need get the ptvfsession from the header "Set-Cookie" */
-        update_cookies(&cookies, stream->get_httpheader(), "ptvfsession", 1);
+        update_cookies(&cookies, stream->headers(), "ptvfsession", 1);
         lwqq_log(LOG_NOTICE, "Verify code: %s\n", vc.str.c_str());
     } else if (*c == '1') {
         /* We need get the verify image. */
@@ -505,7 +506,7 @@ void webqq::cb_done_login(read_streamptr stream, char* response, const boost::sy
 
     switch (status) {
     case 0:
-        sava_cookie(&cookies, stream->get_httpheader());
+        sava_cookie(&cookies, stream->headers());
         lwqq_log(LOG_NOTICE, "login success!\n");
         break;
         
@@ -632,8 +633,20 @@ void webqq::cb_online_status(read_streamptr stream, char* response, const boost:
 	do_poll_one_msg();
 }
 
-void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std::size_t length)
+void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
 {
+	if (!ec)
+	{
+		goten += length;
+		boost::asio::async_read(*stream, boost::asio::buffer(response + goten, 16384 - goten),
+		boost::bind(&webqq::cb_poll_msg, this, stream, response, boost::asio::placeholders::error(),
+			boost::asio::placeholders::bytes_transferred(), goten));
+		return ;
+	}
+	if (ec != boost::asio::error::eof){
+		return ;
+	}
+
 	response[length]=0;
 	defer(boost::bind(operator delete, response));
 	//开启新的 poll	
@@ -652,22 +665,35 @@ void webqq::cb_poll_msg(char* response, const boost::system::error_code& ec, std
 	}
 }
 
-void webqq::process_msg(boost::property_tree::ptree jstree)
+void webqq::process_msg(pt::ptree jstree)
 {
 	pt::json_parser::write_json(std::cout, jstree);
+	//TODO,  在这里解析json数据。
+	std::string retcode =  jstree.get<std::string>("retcode");
+	try{
+		BOOST_FOREACH(pt::ptree::value_type result, jstree.get_child("result"))
+		{
+			std::string polltype = result.second.get<std::string>("poll_type");
+
+			if (polltype == "group_message")
+				siggroupmessage(result.second.get_child("value"));
+		}
+	}
+	catch (const pt::ptree_bad_path & badpath){
+	}
 }
 
 void webqq::cb_get_version(read_streamptr stream, const boost::system::error_code& ec)
 {
-	char * data = new char[1024];
-	boost::asio::async_read(*stream, boost::asio::buffer(data, 1024),
+	char * data = new char[8192];
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
 		boost::bind(&webqq::cb_got_version, this, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec)
 {
-	char * data = new char[1024];
-	boost::asio::async_read(*stream, boost::asio::buffer(data, 1024),
+	char * data = new char[8192];
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
 		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
@@ -691,7 +717,7 @@ void webqq::cb_poll_msg(read_streamptr stream, const boost::system::error_code& 
 {
 	char * data = new char[16384];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
-		boost::bind(&webqq::cb_poll_msg, this, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
+		boost::bind(&webqq::cb_poll_msg, this, stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred(), 0) );
 }
 
 std::string webqq::lwqq_status_to_str(LWQQ_STATUS status)
