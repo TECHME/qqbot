@@ -319,7 +319,7 @@ typedef struct LwqqCookies {
 class webqq
 {
 public:
-	webqq(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
+	webqq(boost::asio::io_service& ios, std::string qq, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
 
 	void send_simple_message( );
 
@@ -361,16 +361,18 @@ private:
 	void process_msg(pt::ptree jstree);
 
 private:
-    boost::asio::io_service & io_service;
+    boost::asio::io_service & m_io_service;
 
-	std::string qqnum, passwd;
-    LWQQ_STATUS status;
+	std::string m_qqnum;
+	std::string m_passwd;
+    LWQQ_STATUS m_status;
 
-	std::string	version;
-	std::string clientid, psessionid;
+	std::string	m_version;
+	std::string m_clientid;
+	std::string m_psessionid;
 
-	LwqqVerifyCode vc;
-	LwqqCookies cookies;
+	LwqqVerifyCode m_vc;
+	LwqqCookies m_cookies;
 };
 
 };

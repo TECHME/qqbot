@@ -10,10 +10,19 @@ static void on_group_msg(const pt::ptree & msg, qq::webqq & qqclient)
 
 int main()
 {
-	boost::asio::io_service io_service;
-	qq::webqq qqclient(io_service, "2664046919", "jackbotwgm123");
+	try
+	{
+		boost::asio::io_service ios;
+		qq::webqq qqclient(ios, "2664046919", "jackbotwgm123");
 
-	qqclient.siggroupmessage.connect(boost::bind(&on_group_msg, _1, boost::ref(qqclient)));
+		qqclient.siggroupmessage.connect(boost::bind(&on_group_msg, _1, boost::ref(qqclient)));
 
-	io_service.run();
+		ios.run();
+	}
+	catch (std::exception& e)
+	{
+		return -1;
+	}
+
+	return 0;
 }

@@ -351,17 +351,19 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
 }
 
 // build webqq and setup defaults
-webqq::webqq(boost::asio::io_service& _io_service,
-	std::string _qqnum, std::string _passwd, LWQQ_STATUS _status)
-	:io_service(_io_service), qqnum(_qqnum), passwd(_passwd), status(_status)
+webqq::webqq(boost::asio::io_service& ios, std::string qq, std::string passwd, LWQQ_STATUS _status)
+	: m_io_service(ios)
+	, m_qqnum(qq)
+	, m_passwd(passwd)
+	, m_status(_status)
 {
 	//开始登录!
 
 	//首先获得版本.
-	read_streamptr stream(new urdl::read_stream(io_service));
+	read_streamptr stream(new urdl::read_stream(m_io_service));
     lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
 
-	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream,  boost::asio::placeholders::error) );	
+	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream,  boost::asio::placeholders::error));	
 }
 
 void webqq::cb_got_version(char* response, const boost::system::error_code& ec, std::size_t length)
@@ -386,17 +388,17 @@ void webqq::cb_got_version(char* response, const boost::system::error_code& ec, 
         memset(v, 0, t - s + 1);
         strncpy(v, s, t - s);
 
-        this->version = v;
+        m_version = v;
 
         //开始真正的登录
-        std::cout << "Get webqq version: " <<  this->version <<  std::endl;
+        std::cout << "Get webqq version: " << m_version << std::endl;
 
         //获取验证码
         std::string url = 
-			boost::str(boost::format("%s%s?uin=%s&appid=%s") % LWQQ_URL_CHECK_HOST % VCCHECKPATH % qqnum % APPID);
+			boost::str(boost::format("%s%s?uin=%s&appid=%s") % LWQQ_URL_CHECK_HOST % VCCHECKPATH % m_qqnum % APPID);
         std::string cookie = 
-			boost::str(boost::format("chkuin=%s") % qqnum);
-		read_streamptr stream(new urdl::read_stream(io_service));
+			boost::str(boost::format("chkuin=%s") % m_qqnum);
+		read_streamptr stream(new urdl::read_stream(m_io_service));
 
 		stream->set_option(urdl::http::cookie(cookie));
 		stream->async_open(url, boost::bind(&webqq::cb_get_vc, this, stream, boost::asio::placeholders::error) );
@@ -427,8 +429,8 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
         /* We got the verify code. */
         
         /* Parse uin first */
-        vc.uin = parse_verify_uin(response);
-        if (vc.uin.empty())
+        m_vc.uin = parse_verify_uin(response);
+        if (m_vc.uin.empty())
 		{
 			sigerror(1, 0);
 			return;
@@ -442,17 +444,17 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
         c = strstr(s, "'");
         *c = '\0';
 
-        vc.type = "0";
-        vc.str = s;
+        m_vc.type = "0";
+        m_vc.str = s;
 
         /* We need get the ptvfsession from the header "Set-Cookie" */
-        update_cookies(&cookies, stream->headers(), "ptvfsession", 1);
-        lwqq_log(LOG_NOTICE, "Verify code: %s\n", vc.str.c_str());
+        update_cookies(&m_cookies, stream->headers(), "ptvfsession", 1);
+        lwqq_log(LOG_NOTICE, "Verify code: %s\n", m_vc.str.c_str());
     } else if (*c == '1') {
         /* We need get the verify image. */
 
         /* Parse uin first */
-        vc.uin = parse_verify_uin(response);
+        m_vc.uin = parse_verify_uin(response);
         s = c;
         c = strstr(s, "'");
         s = c + 1;
@@ -460,15 +462,15 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
         s = c + 1;
         c = strstr(s, "'");
         *c = '\0';
-        vc.type = "1";
+        m_vc.type = "1";
         // ptui_checkVC('1','7ea19f6d3d2794eb4184c9ae860babf3b9c61441520c6df0', '\x00\x00\x00\x00\x04\x7e\x73\xb2');
-        vc.str = s;
+        m_vc.str = s;
         
         //signeedvc();
 
-        lwqq_log(LOG_NOTICE, "We need verify code image: %s\n", vc.str.c_str());
+        lwqq_log(LOG_NOTICE, "We need verify code image: %s\n", m_vc.str.c_str());
     }
-    std::string md5 = lwqq_enc_pwd(passwd.c_str(), vc.str.c_str(), vc.uin.c_str());
+    std::string md5 = lwqq_enc_pwd(m_passwd.c_str(), m_vc.str.c_str(), m_vc.uin.c_str());
 
     // do login !
     std::string url = boost::str(
@@ -480,14 +482,14 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
              "ptlang=2052&from_ui=1&pttype=1&dumy=&fp=loginerroralert&"
              "action=2-11-7438&mibao_css=m_webqq&t=1&g=1") 
              % LWQQ_URL_LOGIN_HOST
-             % qqnum
+             % m_qqnum
              % md5
-             % vc.str
-             % status
+             % m_vc.str
+             % m_status
 	);
 
-	read_streamptr loginstream(new urdl::read_stream(io_service));
-	loginstream->set_option(urdl::http::cookie(cookies.lwcookies));
+	read_streamptr loginstream(new urdl::read_stream(m_io_service));
+	loginstream->set_option(urdl::http::cookie(m_cookies.lwcookies));
 	loginstream->async_open(url, boost::bind(&webqq::cb_do_login, this, loginstream, boost::asio::placeholders::error));
 }
 
@@ -505,7 +507,7 @@ void webqq::cb_done_login(read_streamptr stream, char* response, const boost::sy
 
     switch (status) {
     case 0:
-        sava_cookie(&cookies, stream->headers());
+        sava_cookie(&m_cookies, stream->headers());
         lwqq_log(LOG_NOTICE, "login success!\n");
         break;
         
@@ -556,7 +558,7 @@ void webqq::cb_done_login(read_streamptr stream, char* response, const boost::sy
     if (status == LWQQ_STATUS_ONLINE){
 		siglogin();
 	}
-	clientid = generate_clientid();
+	m_clientid = generate_clientid();
 
 	//change status,  this is the last step for login
 	set_online_status();
@@ -568,16 +570,16 @@ void webqq::set_online_status()
 		boost::format("{\"status\":\"%s\",\"ptwebqq\":\"%s\","
              "\"passwd_sig\":""\"\",\"clientid\":\"%s\""
              ", \"psessionid\":null}")
-		% lwqq_status_to_str(status)
-		% cookies.ptwebqq
-		% clientid
+		% lwqq_status_to_str(m_status)
+		% m_cookies.ptwebqq
+		% m_clientid
 	);
 
 	std::string buf = url_encode(msg.c_str());
 	msg = boost::str(boost::format("r=%s") % buf);
 
-    read_streamptr stream(new urdl::read_stream(io_service));
-	stream->set_option(urdl::http::cookie(cookies.lwcookies));
+    read_streamptr stream(new urdl::read_stream(m_io_service));
+	stream->set_option(urdl::http::cookie(m_cookies.lwcookies));
 	stream->set_option(urdl::http::cookie2("$Version=1"));
 	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
 	stream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
@@ -596,14 +598,14 @@ void webqq::do_poll_one_msg()
 	
 	std::string msg = boost::str(
 		boost::format("{\"clientid\":\"%s\",\"psessionid\":\"%s\"}")
-		% clientid 
-		% psessionid		
+		% m_clientid 
+		% m_psessionid		
 	);
 
 	msg = boost::str(boost::format("r=%s") %  url_encode(msg.c_str()));
 
-    read_streamptr pollstream(new urdl::read_stream(io_service));
-	pollstream->set_option(urdl::http::cookie(cookies.lwcookies));
+    read_streamptr pollstream(new urdl::read_stream(m_io_service));
+	pollstream->set_option(urdl::http::cookie(m_cookies.lwcookies));
 	pollstream->set_option(urdl::http::cookie2("$Version=1"));
 	pollstream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
 	pollstream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
@@ -626,7 +628,7 @@ void webqq::cb_online_status(read_streamptr stream, char* response, const boost:
 	defer(boost::bind(json_free_value, &json));
 	
 	char* value = json_parse_simple_value(json, "retcode");
-	psessionid = json_parse_simple_value(json, "psessionid");
+	m_psessionid = json_parse_simple_value(json, "psessionid");
 	//start polling messages, 2 connections!
 	do_poll_one_msg();
 	do_poll_one_msg();
