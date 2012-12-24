@@ -476,6 +476,7 @@ static void qqbot_control(const std::string msg)
 {
 	boost::regex ex("(.*)?说：(.*)");
 	boost::cmatch what;
+	std::string cmd = msg;
 
 	if(boost::regex_match(cmd.c_str(), what, ex))
 	{
@@ -550,7 +551,7 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	// 写入到日志.
 	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
 	if (group) {
-		const char * nick = mmsg->group.send;
+		std::string nick = mmsg->group.send;
 		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
 		if (by)
 			nick = by->nick;
