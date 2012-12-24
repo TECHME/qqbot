@@ -646,6 +646,7 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 	if (ec != boost::asio::error::eof){
 		return ;
 	}
+	goten += length;
 
 	response[goten]=0;
 	defer(boost::bind(operator delete, response));
