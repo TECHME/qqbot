@@ -48,17 +48,13 @@
 #ifndef MD5_H
 #define MD5_H
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-
-#include <sys/types.h>
+#include <stdint.h>
 
 #define MD5_HASHBYTES 16
 
 typedef struct MD5Context {
-    u_int32_t buf[4];
-    u_int32_t bits[2];
+    uint32_t buf[4];
+    uint32_t bits[2];
     unsigned char in[64];
 } MD5_CTX;
 
