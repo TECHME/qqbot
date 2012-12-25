@@ -150,7 +150,7 @@ private:
 	LwqqVerifyCode vc;
 	LwqqCookies cookies;
 
-	std::map<std::wstring, qqGroup>	groups;
+	std::map<std::string, qqGroup>	groups;
 };
 
 };

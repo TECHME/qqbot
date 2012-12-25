@@ -48,12 +48,12 @@ struct qqGroup{
         LWQQ_GROUP_DISCU,
     }type;
 	// 群ID, 不是群的QQ号，每次登录都变化的.
-	std::wstring gid;
+	std::string gid;
 	// 群名字.
-	std::wstring name;
+	std::string name;
 
 	// 群代码，可以用来获得群QQ号.
-	std::wstring code;
+	std::string code;
 
 	qqGroup(){type = LWQQ_GROUP_QUN;}
 };

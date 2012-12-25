@@ -438,6 +438,7 @@ void WebQQ::update_group_list()
 	stream->set_option(urdl::http::cookie(this->cookies.lwcookies));
 	stream->set_option(urdl::http::request_referer("http://s.web2.qq.com/proxy.html?v=20101025002"));
 	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+	stream->set_option(urdl::http::request_method("POST"));
 
 	stream->async_open(url, boost::bind(&WebQQ::cb_group_list, this, stream, boost::asio::placeholders::error));
 }
@@ -717,7 +718,7 @@ void WebQQ::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 
 void WebQQ::process_msg(pt::wptree jstree)
 {
-	//TODO,  在这里解析json数据。
+	//TODO,  在这里解析json数据.
 	std::wstring retcode =  jstree.get<std::wstring>(L"retcode");
 	try{
 		BOOST_FOREACH(pt::wptree::value_type result, jstree.get_child(L"result"))
@@ -738,33 +739,54 @@ void WebQQ::process_msg(pt::wptree jstree)
 	}
 }
 
+static void timeout(boost::asio::deadline_timer *t, WebQQ & qq){delete t;qq.update_group_list();}
+
 void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
 {
 	defer(boost::bind(operator delete, response));
 
-	pt::wptree	jsonobj;
-	std::wstringstream jsondata;
+	response[length]=0;
+	pt::ptree	jsonobj;
+	std::stringstream jsondata;
 	jsondata <<  response;
+	bool retry = false;
+	
+	std::cout <<  response;
 
 	//处理!
 	try{
 		pt::json_parser::read_json(jsondata, jsonobj);
 		
 		//TODO, group list
-		if (jsonobj.get<int>(L"retcode") == 0)
+		if (!(retry = !(jsonobj.get<int>("retcode") == 0)))
 		{
-			BOOST_FOREACH(pt::wptree::value_type result, 
-							jsonobj.get_child(L"result").get_child(L"gnamelist"))
+			BOOST_FOREACH(pt::ptree::value_type result, 
+							jsonobj.get_child("result").get_child("gnamelist"))
 			{
 				qqGroup	newgroup;
-				newgroup.gid = result.second.get<std::wstring>(L"gid");
-				newgroup.name = result.second.get<std::wstring>(L"name");
-				newgroup.code = result.second.get<std::wstring>(L"code");
-				this->groups.insert(std::make_pair(newgroup.gid, newgroup));
+ 				newgroup.gid = result.second.get<std::string>("gid");
+ 				newgroup.name = result.second.get<std::string>("name");
+ 				newgroup.code = result.second.get<std::string>("code");
+ 				if (newgroup.gid[0]=='-'){
+					retry = true;
+					lwqq_log(LOG_ERROR, "qqGroup get error %s\n", response);
+					continue;
+				}
+
+ 				this->groups.insert(std::make_pair(newgroup.gid, newgroup));
+ 				lwqq_log(LOG_DEBUG, "qq群 %s %s\n",newgroup.gid.c_str(), newgroup.name.c_str());
 			}
 		}
 	}catch (const pt::json_parser_error & jserr){
-		printf("parse json error :  %s\n", response);
+		retry = true;
+		lwqq_log(LOG_ERROR, "parse json error : %s %s\n", jserr.what(), response);
+	}catch (const pt::ptree_bad_path & badpath){
+		retry = true;
+	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
+	}
+	if (retry){
+		boost::asio::deadline_timer *t = new boost::asio::deadline_timer(this->io_service, boost::posix_time::seconds(5));
+		t->async_wait(boost::bind(&timeout, t, boost::ref(*this)));
 	}
 }
 
