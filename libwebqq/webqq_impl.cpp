@@ -325,10 +325,11 @@ void WebQQ::update_group_list()
     std::string url = boost::str(boost::format("%s/api/get_group_name_list_mask2") % "http://s.web2.qq.com");
 
 	read_streamptr stream(new urdl::read_stream(io_service));
+	stream->set_option(urdl::http::request_method("POST"));
 	stream->set_option(urdl::http::cookie(this->cookies.lwcookies));
 	stream->set_option(urdl::http::request_referer("http://s.web2.qq.com/proxy.html?v=20101025002"));
 	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
-	stream->set_option(urdl::http::request_method("POST"));
+	stream->set_option(urdl::http::request_content(posdata));
 
 	stream->async_open(url, boost::bind(&WebQQ::cb_group_list, this, stream, boost::asio::placeholders::error));
 }
