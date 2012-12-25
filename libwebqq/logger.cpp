@@ -11,9 +11,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
-#include <string.h>
-#include <sys/types.h>
-#include <unistd.h>
+#ifdef _WIN32
+# include <windows.h>
+#else
+# include <unistd.h>
+#endif
+
 extern "C"{
 #include "logger.h"
 }
@@ -47,8 +50,16 @@ void lwqq_log(int level, const char *file, int line,
 	tm = localtime(&t);
 	strftime(date, sizeof(date), "%b %e %T", tm);
 	
-    if(level > 1)
-	fprintf(logto, "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level], (long)getpid(), file, line, function);
+    if(level > 1){
+		fprintf(logto, "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level],
+#ifdef _WIN32
+			(long)GetCurrentProcessId(),
+#else
+			(long)getpid(),
+#endif
+			file, line, function);
+		
+	}
 
 	va_start (va, msg);
 	vfprintf(logto , msg, va);
