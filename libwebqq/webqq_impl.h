@@ -82,8 +82,6 @@ typedef struct LwqqVerifyCode {
     size_t size;
 } LwqqVerifyCode;
 
-class WebQQ;
-
 typedef struct LwqqCookies {
     std::string ptvfsession;          /**< ptvfsession */
     std::string ptcz;
@@ -95,11 +93,6 @@ typedef struct LwqqCookies {
     std::string pt2gguin;
     std::string verifysession;
     std::string lwcookies;
-private:
-	// internal use only
-	// TODO, use impl so we don't have to do like this stupid
-	LwqqCookies(){}
-	friend class WebQQ;
 } LwqqCookies;
 
 class WebQQ
