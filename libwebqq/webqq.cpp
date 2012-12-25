@@ -30,7 +30,6 @@ namespace js = boost::property_tree::json_parser;
 extern "C"{
 #include "logger.h"
 #include "md5.h"
-#include "json.h"
 };
 
 using namespace qq;
@@ -358,6 +357,24 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
     return buf;
 }
 
+static pt::ptree json_parse(const char * doc)
+{
+	pt::ptree jstree;
+	std::stringstream stream;
+	stream <<  doc ;
+	js::read_json(stream, jstree);
+	return jstree;
+}
+
+static pt::wptree json_parse(const wchar_t * doc)
+{
+	pt::wptree jstree;
+	std::wstringstream stream;
+	stream <<  doc ;
+	js::read_json(stream, jstree);
+	return jstree;
+}
+
 // build webqq and setup defaults
 webqq::webqq(boost::asio::io_service& _io_service,
 	std::string _qqnum, std::string _passwd, LWQQ_STATUS _status)
@@ -617,22 +634,26 @@ void webqq::do_poll_one_msg()
 
 void webqq::cb_online_status(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
 {
-    json_t *json = NULL;
 	defer(boost::bind(operator delete, response));
-	
-	//psessionid
-	json_error ret = json_parse_document(&json, response);
-	if (!json)
-	 return;
+	//处理!
+	try{
+		pt::ptree json = json_parse(response);
+		js::write_json(std::cout, json);
 
-	defer(boost::bind(json_free_value, &json));
-	
-	char* value = json_parse_simple_value(json, "retcode");
-	psessionid = json_parse_simple_value(json, "psessionid");
-	//start polling messages, 2 connections!
-	lwqq_log(LOG_DEBUG, "start polling messages\n");
-	do_poll_one_msg();
-	do_poll_one_msg();
+
+		if ( json.get<std::string>("retcode") == "0")
+		{
+			psessionid = json.get_child("result").get<std::string>("psessionid");
+			//start polling messages, 2 connections!
+			lwqq_log(LOG_DEBUG, "start polling messages\n");
+			do_poll_one_msg();
+			do_poll_one_msg();
+		}
+	}catch (const pt::json_parser_error & jserr){
+		printf("parse json error :  %s\n", response);
+	}catch (const pt::ptree_bad_path & jserr){
+		printf("parse bad path error :  %s\n", jserr.what());
+	}
 }
 
 void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
