@@ -109,7 +109,7 @@ public:// signals
 	boost::signal< bool (int stage, int why)> sigerror;
 	
 	// 有群消息的时候激发.
-	boost::signal< void (const pt::wptree & )> siggroupmessage;
+	boost::signal< void (std::string group, std::string who, const pt::wptree & )> siggroupmessage;
 	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:

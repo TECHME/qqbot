@@ -25,7 +25,7 @@ webqq::webqq(boost::asio::io_service& asioservice, std::string qqnum, std::strin
 	
 }
 
-void webqq::on_group_msg(boost::function< void(const pt::wptree & )> cb)
+void webqq::on_group_msg(boost::function< void(std::string, std::string, const pt::wptree & )> cb)
 {
 	this->impl->siggroupmessage.connect(cb);
 }

@@ -45,6 +45,14 @@ using namespace qq;
 /* URL for get webqq version */
 #define LWQQ_URL_VERSION "http://ui.ptlogin2.qq.com/cgi-bin/ver"
 
+static std::string wstring2ansi(std::wstring str)
+{
+	std::string ret;
+	for (int i=0;i<str.length();i++)
+		ret += (char)(str[i] & 0x7F);
+	return ret;
+}
+
 static void upcase_string(char *str, int len)
 {
     int i;
@@ -612,7 +620,7 @@ void WebQQ::process_msg(pt::wptree jstree)
 				std::wstring who = result.second.get<std::wstring>(L"send_uin");
 				// get group name
 				// get sender info
-				siggroupmessage(result.second.get_child(L"value"));
+				siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), result.second.get_child(L"value"));
 			}
 		}
 	}
