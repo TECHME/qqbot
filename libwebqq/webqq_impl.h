@@ -66,13 +66,6 @@ class SimpleBuddy{
 	
 };
 
-// 群
-class Group{
-	
-
-};
-
-
 typedef struct LwqqVerifyCode {
     std::string str;
     std::string type;
@@ -99,6 +92,8 @@ class WebQQ
 {
 public:
 	WebQQ(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
+
+	void update_group_list();
 
 	void send_simple_message( );
 
@@ -139,6 +134,10 @@ private:
 
 	void process_msg(pt::wptree jstree);
 
+	void cb_group_list(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_group_list(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
+
+
 private:
     boost::asio::io_service & io_service;
 
@@ -150,6 +149,8 @@ private:
 
 	LwqqVerifyCode vc;
 	LwqqCookies cookies;
+
+	std::map<std::wstring, qqGroup>	groups;
 };
 
 };

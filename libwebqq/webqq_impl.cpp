@@ -367,6 +367,12 @@ static pt::ptree json_parse(const char * doc)
 	return jstree;
 }
 
+static std::string create_post_data(std::string vfwebqq)
+{
+    std::string m = boost::str(boost::format("{\"h\":\"hello\",\"vfwebqq\":\"%s\"}") % vfwebqq);
+    return std::string("r=") + url_encode(m.c_str());
+}
+
 static pt::wptree json_parse(const wchar_t * doc)
 {
 	pt::wptree jstree;
@@ -420,6 +426,20 @@ void WebQQ::cb_got_version(char* response, const boost::system::error_code& ec, 
 		stream->set_option(urdl::http::cookie(cookie));
 		stream->async_open(url,boost::bind(&WebQQ::cb_get_vc,this, stream, boost::asio::placeholders::error) );
 	}
+}
+
+void WebQQ::update_group_list()
+{
+    /* Create post data: {"h":"hello","vfwebqq":"4354j53h45j34"} */
+    std::string posdata = create_post_data(this->vfwebqq);
+    std::string url = boost::str(boost::format("%s/api/get_group_name_list_mask2") % "http://s.web2.qq.com");
+
+	read_streamptr stream(new urdl::read_stream(io_service));
+	stream->set_option(urdl::http::cookie(this->cookies.lwcookies));
+	stream->set_option(urdl::http::request_referer("http://s.web2.qq.com/proxy.html?v=20101025002"));
+	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+
+	stream->async_open(url, boost::bind(&WebQQ::cb_group_list, this, stream, boost::asio::placeholders::error));
 }
 
 void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
@@ -646,6 +666,9 @@ void WebQQ::cb_online_status(read_streamptr stream, char* response, const boost:
 		{
 			psessionid = json.get_child("result").get<std::string>("psessionid");
 			vfwebqq = json.get_child("result").get<std::string>("vfwebqq");
+			//polling group list
+			update_group_list();
+
 			//start polling messages, 2 connections!
 			lwqq_log(LOG_DEBUG, "start polling messages\n");
 			do_poll_one_msg();
@@ -715,6 +738,36 @@ void WebQQ::process_msg(pt::wptree jstree)
 	}
 }
 
+void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
+{
+	defer(boost::bind(operator delete, response));
+
+	pt::wptree	jsonobj;
+	std::wstringstream jsondata;
+	jsondata <<  response;
+
+	//处理!
+	try{
+		pt::json_parser::read_json(jsondata, jsonobj);
+		
+		//TODO, group list
+		if (jsonobj.get<int>(L"retcode") == 0)
+		{
+			BOOST_FOREACH(pt::wptree::value_type result, 
+							jsonobj.get_child(L"result").get_child(L"gnamelist"))
+			{
+				qqGroup	newgroup;
+				newgroup.gid = result.second.get<std::wstring>(L"gid");
+				newgroup.name = result.second.get<std::wstring>(L"name");
+				newgroup.code = result.second.get<std::wstring>(L"code");
+				this->groups.insert(std::make_pair(newgroup.gid, newgroup));
+			}
+		}
+	}catch (const pt::json_parser_error & jserr){
+		printf("parse json error :  %s\n", response);
+	}
+}
+
 void WebQQ::cb_get_version(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[8192];
@@ -750,6 +803,13 @@ void WebQQ::cb_poll_msg(read_streamptr stream, const boost::system::error_code& 
 	char * data = new char[16384];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
 		boost::bind(&WebQQ::cb_poll_msg, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
+}
+
+void WebQQ::cb_group_list(read_streamptr stream, const boost::system::error_code& ec)
+{
+	char * data = new char[16384];
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
+		boost::bind(&WebQQ::cb_group_list, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
 }
 
 std::string WebQQ::lwqq_status_to_str(LWQQ_STATUS status)
