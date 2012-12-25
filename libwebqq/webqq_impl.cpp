@@ -662,8 +662,6 @@ void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::sy
 	std::stringstream jsondata;
 	jsondata <<  response;
 	bool retry = false;
-	
-	std::cout <<  response;
 
 	//处理!
 	try{
