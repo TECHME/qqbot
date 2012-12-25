@@ -173,19 +173,26 @@ static void upcase_string(char *str, int len)
 }
 static std::string generate_clientid()
 {
+    int r;
+    struct timeval tv;
+    long t;
+    char buf[20] = {0};
+    
     srand(time(NULL));
-    int r = rand() % 90 + 10;
-	long t = rand() * rand() * rand();
-	std::string ret = boost::str(boost::format("%d%ld") % r % t);
-
-    return ret;
+    r = rand() % 90 + 10;
+    if (gettimeofday(&tv, NULL)) {
+        return NULL;
+    }
+    t = tv.tv_usec % 1000000;
+    snprintf(buf, sizeof(buf), "%d%ld", r, t);
+    return buf;
 }
 
 // ptui_checkVC('0','!IJG, ptui_checkVC('0','!IJG', '\x00\x00\x00\x00\x54\xb3\x3c\x53');
 static std::string parse_verify_uin(const char *str)
 {
-    const char *start;
-    const char *end;
+    char *start;
+    char *end;
 
     start = strchr(str, '\\');
     if (!start)
@@ -339,7 +346,7 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
     lutil_md5_data((unsigned char *)buf, 16 + uin_byte_length, (char *)buf);
     
     /* Equal to var G=md5(H+C.verifycode.value.toUpperCase()); */
-    sprintf(buf + strlen(buf), "%s", vc);
+    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", vc);
     upcase_string(buf, strlen(buf));
 
     lutil_md5_data((unsigned char *)buf, strlen(buf), (char *)buf);
@@ -361,7 +368,7 @@ webqq::webqq(boost::asio::io_service& _io_service,
 	read_streamptr stream(new urdl::read_stream(io_service));
     lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
 
-	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream,  boost::asio::placeholders::error) );	
+	stream->async_open(LWQQ_URL_VERSION, boost::bind(&webqq::cb_get_version, this, stream,  boost::asio::placeholders::error()) );	
 }
 
 void webqq::cb_got_version(char* response, const boost::system::error_code& ec, std::size_t length)
@@ -377,17 +384,10 @@ void webqq::cb_got_version(char* response, const boost::system::error_code& ec, 
             return ;
         }
         s++;
-
-		std::string str;
-		str.resize(t - s + 1);
-
-		char* v = (char*)str.data();
-
+        char v[t - s + 1];
         memset(v, 0, t - s + 1);
         strncpy(v, s, t - s);
-
         this->version = v;
-
         //开始真正的登录
         std::cout << "Get webqq version: " <<  this->version <<  std::endl;
 
@@ -399,7 +399,7 @@ void webqq::cb_got_version(char* response, const boost::system::error_code& ec, 
 		read_streamptr stream(new urdl::read_stream(io_service));
 
 		stream->set_option(urdl::http::cookie(cookie));
-		stream->async_open(url, boost::bind(&webqq::cb_get_vc, this, stream, boost::asio::placeholders::error) );
+		stream->async_open(url,boost::bind(&webqq::cb_get_vc,this, stream, boost::asio::placeholders::error()) );
 	}
 }
 
@@ -488,7 +488,8 @@ void webqq::cb_got_vc(read_streamptr stream, char* response, const boost::system
 
 	read_streamptr loginstream(new urdl::read_stream(io_service));
 	loginstream->set_option(urdl::http::cookie(cookies.lwcookies));
-	loginstream->async_open(url, boost::bind(&webqq::cb_do_login, this, loginstream, boost::asio::placeholders::error));
+	loginstream->async_open(url,boost::bind(&webqq::cb_do_login,this, loginstream, boost::asio::placeholders::error()) );
+
 }
 
 void webqq::cb_done_login(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
@@ -584,7 +585,7 @@ void webqq::set_online_status()
 	stream->set_option(urdl::http::request_content(msg));
 	stream->set_option(urdl::http::request_method("POST"));
 
-	stream->async_open(LWQQ_URL_SET_STATUS,boost::bind(&webqq::cb_online_status,this, stream, boost::asio::placeholders::error));
+	stream->async_open(LWQQ_URL_SET_STATUS,boost::bind(&webqq::cb_online_status,this, stream, boost::asio::placeholders::error()) );
 }
 
 void webqq::do_poll_one_msg()
@@ -610,7 +611,7 @@ void webqq::do_poll_one_msg()
 	pollstream->set_option(urdl::http::request_content(msg));
 	pollstream->set_option(urdl::http::request_method("POST"));
 
-	pollstream->async_open(url,boost::bind(&webqq::cb_poll_msg,this, pollstream, boost::asio::placeholders::error));
+	pollstream->async_open(url,boost::bind(&webqq::cb_poll_msg,this, pollstream, boost::asio::placeholders::error()) );
 }
 
 void webqq::cb_online_status(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
@@ -638,8 +639,8 @@ void webqq::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 	{
 		goten += length;
 		boost::asio::async_read(*stream, boost::asio::buffer(response + goten, 16384 - goten),
-		boost::bind(&webqq::cb_poll_msg, this, stream, response, boost::asio::placeholders::error,
-			boost::asio::placeholders::bytes_transferred, goten));
+		boost::bind(&webqq::cb_poll_msg, this, stream, response, boost::asio::placeholders::error(),
+			boost::asio::placeholders::bytes_transferred(), goten));
 		return ;
 	}
 	if (ec != boost::asio::error::eof){
@@ -687,14 +688,14 @@ void webqq::cb_get_version(read_streamptr stream, const boost::system::error_cod
 {
 	char * data = new char[8192];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&webqq::cb_got_version, this, data, boost::asio::placeholders::error ,  boost::asio::placeholders::bytes_transferred) );
+		boost::bind(&webqq::cb_got_version, this, data, boost::asio::placeholders::error() ,  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[8192];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred) );
+		boost::bind(&webqq::cb_got_vc, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
 
@@ -702,7 +703,7 @@ void webqq::cb_do_login(read_streamptr stream, const boost::system::error_code& 
 {
 	char * data = new char[8192];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&webqq::cb_done_login, this,stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred) );
+		boost::bind(&webqq::cb_done_login, this,stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_online_status(read_streamptr stream, const boost::system::error_code& ec)
@@ -710,14 +711,14 @@ void webqq::cb_online_status(read_streamptr stream, const boost::system::error_c
 	char * data = new char[8192];
 	memset(data, 0, 8192);
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&webqq::cb_online_status, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred) );
+		boost::bind(&webqq::cb_online_status, this, stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred()) );
 }
 
 void webqq::cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[16384];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
-		boost::bind(&webqq::cb_poll_msg, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
+		boost::bind(&webqq::cb_poll_msg, this, stream, data, boost::asio::placeholders::error(),  boost::asio::placeholders::bytes_transferred(), 0) );
 }
 
 std::string webqq::lwqq_status_to_str(LWQQ_STATUS status)
