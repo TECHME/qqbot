@@ -1,4 +1,4 @@
-
+#include <clocale>
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -14,6 +14,9 @@ static void on_group_msg(const pt::wptree & msg, qq::webqq & qqclient)
 
 	BOOST_FOREACH(pt::wptree::value_type content, msg.get_child(L"content"))
 	{
+		if (content.second.count(L"")==0)
+			std::wcout <<  content.second.data();
+			
 		std::wcout <<  content.second.get<std::wstring>(L"") <<  std::endl;
 
 	}
@@ -21,6 +24,7 @@ static void on_group_msg(const pt::wptree & msg, qq::webqq & qqclient)
 
 int main()
 {
+	std::setlocale(LC_ALL, "");
 	boost::asio::io_service io_service;
 	qq::webqq qqclient(io_service, "2664046919", "jackbotwgm123");
 
