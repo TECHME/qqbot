@@ -14,14 +14,17 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+extern "C"{
 #include "logger.h"
-
-static char *levels[] = {
+}
+static const char *levels[] = {
 	"DEBUG",
 	"NOTICE",
 	"WARNING",
 	"ERROR",
 };
+
+static FILE* logto = stderr;
 
 /** 
  * This is standard logger function
@@ -35,7 +38,6 @@ static char *levels[] = {
 void lwqq_log(int level, const char *file, int line,
               const char *function, const char* msg, ...)
 {
-    char buf[1600] = {0};
 	va_list  va;
 	time_t  t = time(NULL);
 	struct tm *tm;
@@ -46,13 +48,10 @@ void lwqq_log(int level, const char *file, int line,
 	strftime(date, sizeof(date), "%b %e %T", tm);
 	
     if(level > 1)
-	snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level], (long)getpid(), file, line, function);
+	fprintf(logto, "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level], (long)getpid(), file, line, function);
 
-	buf_used = strlen(buf);
 	va_start (va, msg);
-	vsnprintf(buf + buf_used , sizeof(buf) - buf_used, (char*)msg, va);
+	vfprintf(logto , msg, va);
 	va_end(va);
-
-	fprintf(stderr, "%s", buf);
 }
 

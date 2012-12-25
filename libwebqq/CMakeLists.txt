@@ -7,7 +7,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/urdl/include/)
 
 
-add_library(libwebqq STATIC webqq.cpp webqq_impl.cpp url.cpp logger.c md5.c)
+add_library(libwebqq STATIC webqq.cpp webqq_impl.cpp url.cpp logger.cpp md5.c)
 
 target_link_libraries(libwebqq urdl ${Boost_LIBRARIES})
 
