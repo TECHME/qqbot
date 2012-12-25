@@ -43,10 +43,6 @@ typedef enum LWQQ_STATUS{
 
 // 群.
 struct qqGroup{
-    enum{
-        LWQQ_GROUP_QUN,
-        LWQQ_GROUP_DISCU,
-    }type;
 	// 群ID, 不是群的QQ号，每次登录都变化的.
 	std::string gid;
 	// 群名字.
@@ -54,8 +50,6 @@ struct qqGroup{
 
 	// 群代码，可以用来获得群QQ号.
 	std::string code;
-
-	qqGroup(){type = LWQQ_GROUP_QUN;}
 };
 
 class webqq

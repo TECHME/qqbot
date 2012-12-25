@@ -30,6 +30,8 @@ namespace pt = boost::property_tree;
 
 typedef boost::shared_ptr<urdl::read_stream> read_streamptr;
 
+#include "webqq.h"
+
 namespace qq{
 
 typedef enum LwqqMsgType {
@@ -93,9 +95,9 @@ class WebQQ
 public:
 	WebQQ(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
 
-	void update_group_list();
-
 	void send_simple_message( );
+	void update_group_list();
+    void update_group_member(qqGroup &  group);
 
 public:// signals
 	// 登录成功激发.
@@ -137,6 +139,8 @@ private:
 	void cb_group_list(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_group_list(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
 
+	void cb_group_member(read_streamptr stream, const boost::system::error_code& ec);
+	void cb_group_member(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
 
 private:
     boost::asio::io_service & io_service;
@@ -150,7 +154,8 @@ private:
 	LwqqVerifyCode vc;
 	LwqqCookies cookies;
 
-	std::map<std::string, qqGroup>	groups;
+	typedef std::map<std::string, qqGroup>	grouplist;
+	grouplist	groups;
 };
 
 };
