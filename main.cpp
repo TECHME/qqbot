@@ -251,10 +251,10 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 			{
 				buf = qqmsg.text;
 				if (!buf.empty()) {
-					boost::replace_all(buf, "&", "&amp;");
-					boost::replace_all(buf, "<", "&lt;");
-					boost::replace_all(buf, ">", "&gt;");
-					boost::replace_all(buf, "  ", "&nbsp;");
+					boost::replace_all(buf, L"&", L"&amp;");
+					boost::replace_all(buf, L"<", L"&lt;");
+					boost::replace_all(buf, L">", L"&gt;");
+					boost::replace_all(buf, L"  ", L"&nbsp;");
 				}
 			}
 			break;
@@ -275,10 +275,11 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 		}
 		message += buf;
 	}
-	// qq消息控制.
-	qqbot_control(wide_utf8(message));
 	// 记录.
 	printf("%ls\n", message.c_str());
+	// qq消息控制.	
+	qqbot_control(wide_utf8(message));
+
 }
 
 fs::path configfilepath()
@@ -309,6 +310,8 @@ int main(int argc, char *argv[])
     bool isdaemon=false;
 
     progname = fs::basename(argv[0]);
+
+    std::setlocale(LC_ALL, "");
 
 	po::options_description desc("qqbot options");
 	desc.add_options()
