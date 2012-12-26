@@ -32,7 +32,7 @@ void webqq::on_group_msg(boost::function< void(std::string, std::string, const s
 
 qqGroup * webqq::get_Group_by_gid(std::string gid)
 {
-	qq::WebQQ::grouplist::iterator it = impl->groups.find(gid);
+	qq::grouplist::iterator it = impl->groups.find(gid);
 	if (it != impl->groups.end())
 		return & it->second;
 	return NULL;

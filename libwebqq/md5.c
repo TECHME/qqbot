@@ -119,9 +119,7 @@ MD5End(MD5_CTX *ctx, char *buf)
     int i;
     unsigned char digest[MD5_HASHBYTES];
     static const char hex[]="0123456789abcdef";
- 
-    if (!buf)
-        buf = malloc(33);
+
     if (!buf)
         return 0;
     MD5Final(digest,ctx);

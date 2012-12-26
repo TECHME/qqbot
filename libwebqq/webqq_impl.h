@@ -90,6 +90,8 @@ typedef struct LwqqCookies {
     std::string lwcookies;
 } LwqqCookies;
 
+typedef std::map<std::string, qqGroup>	grouplist;
+
 class WebQQ
 {
 public:
@@ -141,9 +143,8 @@ private:
 
 	void cb_group_member(qqGroup &, read_streamptr stream, const boost::system::error_code& ec);
 	void cb_group_member(qqGroup &,read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
-
 private:
-    boost::asio::io_service & io_service;
+    boost::asio::io_service & m_io_service;
 
 	std::string qqnum, passwd;
     LWQQ_STATUS status;
@@ -154,9 +155,8 @@ private:
 	LwqqVerifyCode vc;
 	LwqqCookies cookies;
 
-	typedef std::map<std::string, qqGroup>	grouplist;
 	grouplist	groups;
-	friend class webqq;
+	friend class ::webqq;
 };
 
 };
