@@ -41,6 +41,17 @@ typedef enum LWQQ_STATUS{
     LWQQ_STATUS_SLIENT = 70
 }LWQQ_STATUS;
 
+struct qqBuddy{
+	// 号码，每次登录都变化的.
+	std::string uin;
+
+	// 昵称.
+	std::string nick;
+
+	// qq号码，不一定有，需要调用 get_qqnumber后才有.
+	std::string qqnum;
+};
+
 // 群.
 struct qqGroup{
 	// 群ID, 不是群的QQ号，每次登录都变化的.
@@ -50,6 +61,8 @@ struct qqGroup{
 
 	// 群代码，可以用来获得群QQ号.
 	std::string code;
+
+	std::map<std::string, qqBuddy>	memberlist;
 };
 
 class webqq

@@ -352,7 +352,7 @@ void WebQQ::update_group_member(qqGroup& group)
 	);
 	stream->set_option(urdl::http::request_referer(LWQQ_URL_REFERER_QUN_DETAIL));
 	
-	stream->async_open(url, boost::bind(&WebQQ::cb_group_member, this, stream, boost::asio::placeholders::error));
+	stream->async_open(url, boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, boost::asio::placeholders::error));
 }
 
 void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
@@ -651,7 +651,11 @@ void WebQQ::process_msg(pt::wptree jstree)
 	}
 }
 
-static void timeout(boost::asio::deadline_timer *t, WebQQ & qq){delete t;qq.update_group_list();}
+static void timeout(boost::asio::deadline_timer *t, boost::function<void()> cb)
+{
+	delete t;
+	cb();
+}
 
 void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
 {
@@ -696,7 +700,7 @@ void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::sy
 	}
 	if (retry){
 		boost::asio::deadline_timer *t = new boost::asio::deadline_timer(this->io_service, boost::posix_time::seconds(5));
-		t->async_wait(boost::bind(&timeout, t, boost::ref(*this)));
+		t->async_wait(boost::bind(&timeout, t, (boost::function<void()>)(boost::bind(&WebQQ::update_group_list, this))));
 	}else{
 		// fetching more budy info.
 		BOOST_FOREACH(grouplist::value_type & v, groups)
@@ -706,16 +710,30 @@ void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::sy
 	}
 }
 
-void WebQQ::cb_group_member(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
+void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
 {
+	if (!ec)
+	{
+		goten += length;
+		boost::asio::async_read(*stream, boost::asio::buffer(response + goten, 16384 - goten),
+		boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, response, boost::asio::placeholders::error,
+			boost::asio::placeholders::bytes_transferred, goten));
+		return ;
+	}
+	if (ec != boost::asio::error::eof){
+		delete response;
+		return ;
+	}
+	goten += length;
+	
 	defer(boost::bind(operator delete, response));
 
-	response[length]=0;
+	response[goten]=0;
 	pt::ptree	jsonobj;
 	std::stringstream jsondata;
 	jsondata <<  response;
 	
-	std::cout <<  response;
+	std::cout <<  response << std::endl;
 
 	//处理!
 	try{
@@ -724,10 +742,23 @@ void WebQQ::cb_group_member(read_streamptr stream, char* response, const boost::
 		//TODO, group members
 		if (jsonobj.get<int>("retcode") == 0)
 		{
+			BOOST_FOREACH(pt::ptree::value_type & v, jsonobj.get_child("result").get_child("minfo"))
+			{
+				qqBuddy buddy;
+				pt::ptree & minfo = v.second;
+				buddy.nick = minfo.get<std::string>("nick");
+				buddy.uin = minfo.get<std::string>("uin");
 
+				group.memberlist.insert(std::make_pair(buddy.uin, buddy));
+				lwqq_log(LOG_DEBUG, "buddy list:: %s %s\n", buddy.uin.c_str(), buddy.nick.c_str());
+			}
 		}
 	}catch (const pt::json_parser_error & jserr){
 		lwqq_log(LOG_ERROR, "parse json error : %s %s\n", jserr.what(), response);
+
+		boost::asio::deadline_timer *t = new boost::asio::deadline_timer(this->io_service, boost::posix_time::seconds(5));
+		t->async_wait(boost::bind(&timeout, t, (boost::function<void()>)(boost::bind(&WebQQ::update_group_member, this, boost::ref(group)))));
+
 	}catch (const pt::ptree_bad_path & badpath){
 	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
 	}
@@ -778,11 +809,11 @@ void WebQQ::cb_group_list(read_streamptr stream, const boost::system::error_code
 		boost::bind(&WebQQ::cb_group_list, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
 }
 
-void WebQQ::cb_group_member(read_streamptr stream, const boost::system::error_code& ec)
+void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, const boost::system::error_code& ec)
 {
-	char * data = new char[16384];
-	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
-		boost::bind(&WebQQ::cb_group_member, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
+	char * data = new char[81920];
+	boost::asio::async_read(*stream, boost::asio::buffer(data, 81920),
+		boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
 }
 
 std::string WebQQ::lwqq_status_to_str(LWQQ_STATUS status)
