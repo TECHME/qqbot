@@ -292,7 +292,7 @@ qq::WebQQ::WebQQ(boost::asio::io_service& _io_service,
 	stream->async_open(LWQQ_URL_VERSION, boost::bind(&WebQQ::cb_get_version, this, stream,  boost::asio::placeholders::error) );	
 }
 
-void WebQQ::cb_got_version(char* response, const boost::system::error_code& ec, std::size_t length)
+void WebQQ::cb_got_version(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
 {
 	defer(boost::bind(operator delete, response));
     if (strstr(response, "ptuiV"))
@@ -794,7 +794,7 @@ void WebQQ::cb_get_version(read_streamptr stream, const boost::system::error_cod
 {
 	char * data = new char[8192];
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&WebQQ::cb_got_version, this, data, boost::asio::placeholders::error ,  boost::asio::placeholders::bytes_transferred) );
+		boost::bind(&WebQQ::cb_got_version, this, stream, data, boost::asio::placeholders::error ,  boost::asio::placeholders::bytes_transferred) );
 }
 
 void WebQQ::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec)
