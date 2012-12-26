@@ -12,7 +12,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <iconv.h>
 
 #include "url.hpp"
 
