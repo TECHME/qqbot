@@ -419,7 +419,9 @@ void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system
         // ptui_checkVC('1','7ea19f6d3d2794eb4184c9ae860babf3b9c61441520c6df0', '\x00\x00\x00\x00\x04\x7e\x73\xb2');
         m_verifycode.str = s;
         
-        //signeedvc();
+        //TODO, get verify image
+        
+		signeedvc("");
 
         lwqq_log(LOG_NOTICE, "We need verify code image: %s\n", m_verifycode.str.c_str());
     }

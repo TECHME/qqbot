@@ -87,6 +87,12 @@ class WebQQ
 public:
 	WebQQ(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
 
+	// not need to call this the first time, but you might need this if you became offline.
+	void login();
+	// login with vc, call this if you got signeedvc signal.
+	// in signeedvc signal, you can retreve images from server.
+	void login_withvc(std::string vccode);
+
 	void send_simple_message( );
 	void update_group_list();
     void update_group_member(qqGroup &  group);
@@ -94,8 +100,8 @@ public:
 public:// signals
 	// 登录成功激发.
 	boost::signal< void ()> siglogin;
-	// 验证码, 需要返回验证码。图片内容在 const_buffer
-	boost::signal< std::string ( boost::asio::const_buffer )> signeedvc;
+	// 验证码, 需要自行下载url中的图片，然后调用 login_withvc.
+	boost::signal< void ( std::string url )> signeedvc;
 	// 断线的时候激发.
 	boost::signal< void ()> sigoffline;
 
