@@ -642,7 +642,7 @@ void WebQQ::process_msg(const pt::wptree &jstree)
 	BOOST_FOREACH(const pt::wptree::value_type & result, jstree.get_child(L"result"))
 	{
 		if (result.second.get<std::wstring>(L"poll_type") == L"group_message"){
-			std::wstring group_code = result.second.get<std::wstring>(L"value.group_code");
+			std::wstring group_code = result.second.get<std::wstring>(L"value.from_uin");
 			std::wstring who = result.second.get<std::wstring>(L"value.send_uin");
 
 			//parse content
