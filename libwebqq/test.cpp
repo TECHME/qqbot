@@ -4,23 +4,23 @@
 #include "webqq.h"
 #include "logger.h"
 
-static void on_group_msg(std::string group_code, std::string who, const std::vector<qqMsg> & msg, webqq & qqclient)
+static void on_group_msg(std::wstring group_code, std::wstring who, const std::vector<qqMsg> & msg, webqq & qqclient)
 {
 	qqBuddy * buddy = NULL;
 	qqGroup * group = qqclient.get_Group_by_gid(group_code);
-	std::string	groupname = group_code;
+	std::wstring	groupname = group_code;
 	if (group)
 		groupname = group->name;
 	buddy = group? group->get_Buddy_by_uin(who):NULL;
-	std::string nick = who;
+	std::wstring nick = who;
 	if (buddy)
 		nick = buddy->nick;
 
-	std::cout <<  "(群 :";
-	std::cout <<  groupname;
-	std::cout <<  "), ";
-	std::cout << nick;
-	std::cout <<  "说：";
+	std::wcout <<  L"(群 :";
+	std::wcout <<  groupname;
+	std::wcout <<  L"), ";
+	std::wcout << nick;
+	std::wcout <<  L"说：";
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{

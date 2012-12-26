@@ -20,6 +20,7 @@
 #ifndef WEBQQ_H
 #define WEBQQ_H
 
+#include <string>
 #include <vector>
 #include <boost/asio.hpp>
 #include <boost/function.hpp>
@@ -44,29 +45,29 @@ typedef enum LWQQ_STATUS{
 
 struct qqBuddy{
 	// 号码，每次登录都变化的.
-	std::string uin;
+	std::wstring uin;
 
 	// 昵称.
-	std::string nick;
+	std::wstring nick;
 
 	// qq号码，不一定有，需要调用 get_qqnumber后才有.
-	std::string qqnum;
+	std::wstring qqnum;
 };
 
 // 群.
 struct qqGroup{
 	// 群ID, 不是群的QQ号，每次登录都变化的.
-	std::string gid;
+	std::wstring gid;
 	// 群名字.
-	std::string name;
+	std::wstring name;
 
 	// 群代码，可以用来获得群QQ号.
-	std::string code;
+	std::wstring code;
 
-	std::map<std::string, qqBuddy>	memberlist;
+	std::map<std::wstring, qqBuddy>	memberlist;
 
-	qqBuddy * get_Buddy_by_uin(std::string uin){
-		std::map<std::string, qqBuddy>::iterator it = memberlist.find(uin);
+	qqBuddy * get_Buddy_by_uin(std::wstring uin){
+		std::map<std::wstring, qqBuddy>::iterator it = memberlist.find(uin);
 		if (it!=memberlist.end())
 			return &it->second;
 		return NULL;
@@ -90,11 +91,11 @@ class webqq
 {
 public:
 	webqq(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
-	void on_group_msg(boost::function<void (std::string group_code, std::string who, const std::vector<qqMsg> & )> cb);
+	void on_group_msg(boost::function<void (std::wstring group_code, std::wstring who, const std::vector<qqMsg> & )> cb);
 
 	void start();
 
-	qqGroup * get_Group_by_gid(std::string);
+	qqGroup * get_Group_by_gid(std::wstring);
 private:
     class qq::WebQQ * const impl;
 };

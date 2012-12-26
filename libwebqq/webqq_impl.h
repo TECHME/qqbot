@@ -80,7 +80,7 @@ typedef struct LwqqCookies {
     std::string lwcookies;
 } LwqqCookies;
 
-typedef std::map<std::string, qqGroup>	grouplist;
+typedef std::map<std::wstring, qqGroup>	grouplist;
 
 class WebQQ
 {
@@ -110,7 +110,7 @@ public:// signals
 	boost::signal< bool (int stage, int why)> sigerror;
 	
 	// 有群消息的时候激发.
-	boost::signal< void (std::string group, std::string who, const std::vector<qqMsg> & )> siggroupmessage;
+	boost::signal< void (std::wstring group, std::wstring who, const std::vector<qqMsg> & )> siggroupmessage;
 	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:

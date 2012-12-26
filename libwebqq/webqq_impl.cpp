@@ -29,6 +29,7 @@ namespace js = boost::property_tree::json_parser;
 #include "defer.hpp"
 #include "url.hpp"
 #include "logger.h"
+#include "utf8/utf8.h"
 
 extern "C"{
 #include "md5.h"
@@ -50,14 +51,6 @@ using namespace qq;
 
 #define LWQQ_URL_REFERER_QUN_DETAIL "http://s.web2.qq.com/proxy.html?v=20110412001&id=3"
 #define LWQQ_URL_REFERER_DISCU_DETAIL "http://d.web2.qq.com/proxy.html?v=20110331002&id=2"
-
-static std::string wstring2ansi(std::wstring str)
-{
-	std::string ret;
-	for (int i=0;i<str.length();i++)
-		ret += (char)(str[i] & 0x7F);
-	return ret;
-}
 
 static void upcase_string(char *str, int len)
 {
@@ -358,7 +351,7 @@ void WebQQ::update_group_member(qqGroup& group)
 	url = boost::str(
 		boost::format("%s/api/get_group_info_ext2?gcode=%s&vfwebqq=%s&t=%ld")
 		% "http://s.web2.qq.com"
-		% group.code
+		% wide_utf8(group.code)
 		% m_vfwebqq
 		% time(NULL)
 	);
@@ -723,7 +716,7 @@ void WebQQ::process_msg(const pt::wptree &jstree)
 					messagecontent.push_back(msg);
 				}
 			}
-			siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), messagecontent);
+			siggroupmessage(group_code, who, messagecontent);
 		}
 	}
 }
@@ -755,10 +748,10 @@ void WebQQ::cb_group_list(read_streamptr stream, char* response, const boost::sy
 							jsonobj.get_child("result").get_child("gnamelist"))
 			{
 				qqGroup	newgroup;
- 				newgroup.gid = result.second.get<std::string>("gid");
- 				newgroup.name = result.second.get<std::string>("name");
- 				newgroup.code = result.second.get<std::string>("code");
- 				if (newgroup.gid[0]=='-'){
+ 				newgroup.gid = utf8_wide(result.second.get<std::string>("gid"));
+ 				newgroup.name = utf8_wide(result.second.get<std::string>("name"));
+ 				newgroup.code = utf8_wide(result.second.get<std::string>("code"));
+ 				if (newgroup.gid[0]==L'-'){
 					retry = true;
 					lwqq_log(LOG_ERROR, "qqGroup get error %s\n", response);
 					continue;
@@ -820,11 +813,11 @@ void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, char* respon
 			{
 				qqBuddy buddy;
 				pt::ptree & minfo = v.second;
-				buddy.nick = minfo.get<std::string>("nick");
-				buddy.uin = minfo.get<std::string>("uin");
+				buddy.nick = utf8_wide(minfo.get<std::string>("nick"));
+				buddy.uin = utf8_wide(minfo.get<std::string>("uin"));
 
 				group.memberlist.insert(std::make_pair(buddy.uin, buddy));
-				lwqq_log(LOG_DEBUG, "buddy list:: %s %s\n", buddy.uin.c_str(), buddy.nick.c_str());
+				lwqq_log(LOG_DEBUG, "buddy list:: %ls %ls\n", buddy.uin.c_str(), buddy.nick.c_str());
 			}
 		}
 	}catch (const pt::json_parser_error & jserr){

@@ -5,7 +5,7 @@ find_package(Boost 1.46 REQUIRED COMPONENTS signals system)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(urdl/include/)
-
+include_directories(..)
 add_definitions(-DURDL_DISABLE_SSL=1)
 
 add_subdirectory(urdl)

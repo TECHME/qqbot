@@ -25,12 +25,12 @@ webqq::webqq(boost::asio::io_service& asioservice, std::string qqnum, std::strin
 	
 }
 
-void webqq::on_group_msg(boost::function< void(std::string, std::string, const std::vector<qqMsg>& )> cb)
+void webqq::on_group_msg(boost::function< void(std::wstring, std::wstring, const std::vector<qqMsg>& )> cb)
 {
 	this->impl->siggroupmessage.connect(cb);
 }
 
-qqGroup * webqq::get_Group_by_gid(std::string gid)
+qqGroup * webqq::get_Group_by_gid(std::wstring gid)
 {
 	qq::grouplist::iterator it = impl->m_groups.find(gid);
 	if (it != impl->m_groups.end())
