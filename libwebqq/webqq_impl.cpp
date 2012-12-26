@@ -638,16 +638,17 @@ void WebQQ::process_msg(pt::wptree jstree)
 			std::wstring polltype = result.second.get<std::wstring>(L"poll_type");
 
 			if (polltype == L"group_message"){
-				std::wstring group_code = result.second.get<std::wstring>(L"group_code");
-				std::wstring who = result.second.get<std::wstring>(L"send_uin");
+				std::wstring group_code = result.second.get_child(L"value").get<std::wstring>(L"group_code");
+				std::wstring who = result.second.get_child(L"value").get<std::wstring>(L"send_uin");
 				// get group name
 				// get sender info
-				siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), result.second.get_child(L"value"));
+				siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), result.second.get_child(L"value").get_child(L"content"));
 			}
 		}
 	}
 	catch (const pt::ptree_bad_path & badpath){
-	 	pt::json_parser::write_json(std::wcout, jstree);
+		lwqq_log(LOG_ERROR, "bad path %s\n", badpath.what());
+		js::write_json(std::wcout, jstree);
 	}
 }
 

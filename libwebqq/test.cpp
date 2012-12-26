@@ -19,11 +19,10 @@ static void on_group_msg(std::string group_code, std::string who, const pt::wptr
 
 	std::cout <<  "(群 :" <<  groupname <<  "), " << nick <<  "说：" ;
 	
-	BOOST_FOREACH(pt::wptree::value_type content, msg.get_child(L"content"))
+	BOOST_FOREACH(pt::wptree::value_type content, msg)
 	{
 		if (content.second.count(L"")==0)
 			std::wcout <<  content.second.data();
-			
 // 		std::wcout <<  content.second.get<std::wstring>(L"") <<  std::endl;
 	}
 	std::cout <<  std::endl;
