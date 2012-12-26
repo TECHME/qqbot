@@ -370,7 +370,7 @@ void WebQQ::cb_got_version(const boost::system::error_code& ec, read_streamptr s
 		read_streamptr stream(new urdl::read_stream(m_io_service));
 
 		stream->set_option(urdl::http::cookie(cookie));
-		stream->async_open(url,boost::bind(&WebQQ::cb_get_vc,this, stream, boost::asio::placeholders::error) );
+		urdl_download(stream, url, boost::bind(&WebQQ::cb_got_vc,this, boost::asio::placeholders::error, _2, _3));
 	}
 }
 
@@ -438,9 +438,8 @@ void WebQQ::login_withvc(std::string vccode)
 	loginstream->async_open(url,boost::bind(&WebQQ::cb_do_login,this, loginstream, boost::asio::placeholders::error) );
 }
 
-void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
+void WebQQ::cb_got_vc(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf& buffer)
 {
-	defer(boost::bind(operator delete, response));
 	/**
 	* 
 	* The http message body has two format:
@@ -453,7 +452,7 @@ void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system
 	* parameter is the verify code. The vc_type is in the header
 	* "Set-Cookie".
 	*/
-	
+	const char * response = boost::asio::buffer_cast<const char * >(buffer.data());
 	char *s;
 	char *c = strstr(response, "ptui_checkVC");
     c = strchr(response, '\'');
@@ -804,7 +803,7 @@ void WebQQ::cb_group_list(const boost::system::error_code& ec, read_streamptr st
 				}
 
  				this->m_groups.insert(std::make_pair(newgroup.gid, newgroup));
- 				lwqq_log(LOG_DEBUG, "qq群 %s %s\n",newgroup.gid.c_str(), newgroup.name.c_str());
+ 				lwqq_log(LOG_DEBUG, "qq群 %ls %ls\n",newgroup.gid.c_str(), newgroup.name.c_str());
 			}
 		}
 	}catch (const pt::json_parser_error & jserr){
@@ -876,14 +875,6 @@ void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, char* respon
 	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
 	}
 }
-
-void WebQQ::cb_get_vc(read_streamptr stream, const boost::system::error_code& ec)
-{
-	char * data = new char[8192];
-	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&WebQQ::cb_got_vc, this,stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred) );
-}
-
 
 void WebQQ::cb_get_verify_image(read_streamptr stream, const boost::system::error_code& ec)
 {

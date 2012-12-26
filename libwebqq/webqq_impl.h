@@ -116,8 +116,7 @@ public:// signals
 private:
 	void cb_got_version(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
-	void cb_get_vc(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length);
+	void cb_got_vc(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 	
 	void get_verify_image();
 	void cb_get_verify_image(read_streamptr stream, const boost::system::error_code& ec);
