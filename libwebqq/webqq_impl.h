@@ -146,16 +146,16 @@ private:
 private:
     boost::asio::io_service & m_io_service;
 
-	std::string qqnum, passwd;
-    LWQQ_STATUS status;
+	std::string m_qqnum, m_passwd;
+    LWQQ_STATUS m_status;
 
-	std::string	version;
-	std::string clientid, psessionid, vfwebqq;
+	std::string	m_version;
+	std::string m_clientid, m_psessionid, m_vfwebqq;
 
-	LwqqVerifyCode vc;
-	LwqqCookies cookies;
+	LwqqVerifyCode m_verifycode;
+	LwqqCookies m_cookies;
 
-	grouplist	groups;
+	grouplist	m_groups;
 	friend class ::webqq;
 };
 
