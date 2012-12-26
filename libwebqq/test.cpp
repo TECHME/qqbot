@@ -5,21 +5,29 @@
 namespace js = boost::property_tree::json_parser;
 #include "webqq.h"
 
-static void on_group_msg(std::string group, std::string who, const pt::wptree & msg, webqq & qqclient)
+static void on_group_msg(std::string group_code, std::string who, const pt::wptree & msg, webqq & qqclient)
 {
-	js::write_json(std::wcout, msg);
+	qqBuddy * buddy = NULL;
+	qqGroup * group = qqclient.get_Group_by_gid(group_code);
+	std::string	groupname = group_code;
+	if (group)
+		groupname = group->name;
+	buddy = group? group->get_Buddy_by_uin(who):NULL;
+	std::string nick = who;
+	if (buddy)
+		nick = buddy->nick;
 
-	std::wstring group_code =  msg.get<std::wstring>(L"group_code");
-	std::wcout <<  group_code <<  std::endl;
-
+	std::cout <<  "(群 :" <<  groupname <<  "), " << nick <<  "说：" ;
+	
 	BOOST_FOREACH(pt::wptree::value_type content, msg.get_child(L"content"))
 	{
 		if (content.second.count(L"")==0)
 			std::wcout <<  content.second.data();
 			
-		std::wcout <<  content.second.get<std::wstring>(L"") <<  std::endl;
-
+// 		std::wcout <<  content.second.get<std::wstring>(L"") <<  std::endl;
 	}
+	std::cout <<  std::endl;
+// 	js::write_json(std::wcout, msg);
 }
 
 int main()
