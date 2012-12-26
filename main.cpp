@@ -242,12 +242,6 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 	message += nick;
 	message += L" 说：";
 
-	std::wcout <<  L"(群 :";
-	std::wcout <<  groupname;
-	std::wcout <<  L"), ";
-	std::wcout << nick;
-	std::wcout <<  L"说：";
-
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
 		std::wstring buf;

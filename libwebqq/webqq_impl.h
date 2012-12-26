@@ -114,8 +114,7 @@ public:// signals
 	static std::string lwqq_status_to_str(LWQQ_STATUS status);
 
 private:
-	void cb_get_version(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_got_version(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
+	void cb_got_version(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
 	void cb_get_vc(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length);
@@ -139,8 +138,7 @@ private:
 
 	void process_msg(const pt::wptree & jstree);
 
-	void cb_group_list(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_group_list(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
+	void cb_group_list(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
 	void cb_group_member(qqGroup &, read_streamptr stream, const boost::system::error_code& ec);
 	void cb_group_member(qqGroup &,read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
