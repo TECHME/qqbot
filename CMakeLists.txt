@@ -13,7 +13,7 @@ include_directories(urdl/include/)
 
 add_executable(qqbot main.cpp)
 
-target_link_libraries(qqbot liblwqq libirc)
+target_link_libraries(qqbot libwebqq libirc)
 target_link_libraries(qqbot ${Boost_LIBRARIES})
 
 if(WIN32)

@@ -58,16 +58,6 @@ typedef enum {
     LWQQ_MC_LOST_CONN = 121
 }LwqqMsgRetcode;
 
-// 好友
-class Buddy{
-	
-};
-
-// 群成员啊，临时聊天之类的
-class SimpleBuddy{
-	
-};
-
 typedef struct LwqqVerifyCode {
     std::string str;
     std::string type;
