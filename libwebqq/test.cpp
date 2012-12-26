@@ -35,6 +35,7 @@ int main()
 	boost::asio::io_service io_service;
 	webqq qqclient(io_service, "2664046919", "jackbotwgm123");
 
+	qqclient.start();
 	qqclient.on_group_msg(boost::bind(&on_group_msg, _1, _2, _3, boost::ref(qqclient)));
 
 	io_service.run();

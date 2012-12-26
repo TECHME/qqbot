@@ -44,11 +44,13 @@ void lwqq_log(int level, const char *file, int line,
 	time_t  t = time(NULL);
 	struct tm *tm;
 	int buf_used = 0;
-	char date[256];
+	char date[256] = "NOTIME";
 
+#ifndef WIN32
 	tm = localtime(&t);
 	strftime(date, sizeof(date), "%b %e %T", tm);
-	
+#endif // WIN32
+
     if(level > 1){
 		fprintf(logto, "[%s] %s[%ld]: %s:%d %s: \n\t", date, levels[level],
 #ifdef _WIN32

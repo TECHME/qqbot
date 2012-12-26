@@ -40,7 +40,7 @@ std::string url_encode(const char *str)
     if (!str)
         return "";
 	
-	char buf[strlen(str) * 3 + 1];    
+	char *buf = new char[strlen(str) * 3 + 1];
     char *pstr = (char*) str, *pbuf = buf;
     
     while (*pstr) {
@@ -51,14 +51,18 @@ std::string url_encode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret = buf;
+	delete[] buf;
+    return ret;
 }
+
 std::string url_whole_encode(const char *str)
 {
     if (!str)
         return NULL;
-    char buf[strlen(str) * 3 + 1];
-    char *pstr = (char*)str, *pbuf = buf;
+
+    char *pstr = (char*)str;
+	char *pbuf = new char[strlen(str) * 3 + 1];
     while (*pstr) {
         if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~' ||*pstr == ':' ||*pstr == '/'
                 || *pstr == '&'|| *pstr == '=' || *pstr == '?') 
@@ -68,7 +72,9 @@ std::string url_whole_encode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret = pbuf;
+	delete[] pbuf;
+	return ret;
 }
 
 /** 
@@ -83,9 +89,9 @@ std::string url_decode(const char *str)
     if (!str) {
         return NULL;
     }
-    char buf[strlen(str) * 3 + 1];
 
-    char *pstr = (char*)str, *pbuf = buf;
+    char *pstr = (char*)str;
+	char *pbuf = new char[strlen(str) * 3 + 1];
     while (*pstr) {
         if (*pstr == '%') {
             if (pstr[1] && pstr[2]) {
@@ -100,8 +106,11 @@ std::string url_decode(const char *str)
         pstr++;
     }
     *pbuf = '\0';
-    return buf;
+	std::string ret = pbuf;
+	delete[] pbuf;
+	return ret;
 }
+
 /*
 char* to_gbk(char* utf8)
 {

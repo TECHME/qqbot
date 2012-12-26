@@ -24,9 +24,11 @@ namespace po = boost::program_options;
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
+#include <wchar.h>
 
 #include "libirc/irc.h"
 #include "libwebqq/webqq.h"
+#include "utf8/core.h"
 
 #define QQBOT_VERSION "0.0.1"
 
@@ -291,6 +293,11 @@ static void on_group_msg(std::string group_code, std::string who, const std::vec
 	std::string nick = who;
 	if (buddy)
 		nick = buddy->nick;
+		
+	std::wstring message;
+
+	//message += nick;
+	
 
 	std::cout <<  "(群 :";
 	std::cout <<  groupname;
@@ -300,8 +307,9 @@ static void on_group_msg(std::string group_code, std::string who, const std::vec
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
-		if (qqmsg.type == qqMsg::LWQQ_MSG_TEXT)
+		if (qqmsg.type == qqMsg::LWQQ_MSG_TEXT){
 			printf("%ls\n", qqmsg.text.c_str());
+		}
 	}
 }
 
@@ -381,6 +389,7 @@ int main(int argc, char *argv[])
 	ircclient.login("qqbot_shenghua","#avplayer");
 
 	webqq qqclient(asio, qqnumber, password);
+	qqclient.start();
 	qqclient.on_group_msg(boost::bind(on_group_msg, _1, _2, _3, boost::ref(qqclient)));
 
     boost::asio::io_service::work work(asio);

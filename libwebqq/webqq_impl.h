@@ -93,6 +93,7 @@ public:
 	// in signeedvc signal, you can retreve images from server.
 	void login_withvc(std::string vccode);
 
+	void start();
 	void send_simple_message( );
 	void update_group_list();
     void update_group_member(qqGroup &  group);
