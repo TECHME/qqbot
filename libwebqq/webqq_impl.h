@@ -118,7 +118,7 @@ public:// signals
 
 private:
 	void cb_get_version(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_got_version(char * response, const boost::system::error_code& ec, std::size_t length);
+	void cb_got_version(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);
 
 	void cb_get_vc(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length);
