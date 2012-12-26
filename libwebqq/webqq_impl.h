@@ -117,7 +117,7 @@ private:
 	void cb_got_version(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
 	void cb_got_vc(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
-	
+
 	void get_verify_image();
 	void cb_get_verify_image(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
