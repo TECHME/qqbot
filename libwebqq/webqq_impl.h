@@ -96,7 +96,7 @@ public:
 	void start();
 	void send_simple_message( );
 	void update_group_list();
-    void update_group_member(qqGroup &  group);
+    void update_group_detail(qqGroup &  group);
 
 public:// signals
 	// 登录成功激发.
@@ -138,6 +138,7 @@ private:
 
 	void cb_group_list(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 	void cb_group_member(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, qqGroup &);
+	void cb_group_qqnumber(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, qqGroup &);
 private:
     boost::asio::io_service & m_io_service;
 

@@ -63,6 +63,8 @@ struct qqGroup{
 
 	// 群代码，可以用来获得群QQ号.
 	std::wstring code;
+	// 群QQ号.
+	std::wstring qqnum;
 
 	std::map<std::wstring, qqBuddy>	memberlist;
 

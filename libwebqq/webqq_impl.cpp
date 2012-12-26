@@ -392,23 +392,40 @@ void WebQQ::update_group_list()
 	);
 }
 
-void WebQQ::update_group_member(qqGroup& group)
+void WebQQ::update_group_detail(qqGroup& group)
 {
 	std::string url;
-	read_streamptr stream(new urdl::read_stream(m_io_service));
-	stream->set_option(urdl::http::cookie(this->m_cookies.lwcookies));
+	{
+		read_streamptr stream(new urdl::read_stream(m_io_service));
+		stream->set_option(urdl::http::cookie(this->m_cookies.lwcookies));
 
-	url = boost::str(
-		boost::format("%s/api/get_group_info_ext2?gcode=%s&vfwebqq=%s&t=%ld")
-		% "http://s.web2.qq.com"
-		% wide_utf8(group.code)
-		% m_vfwebqq
-		% time(NULL)
-	);
-	stream->set_option(urdl::http::request_referer(LWQQ_URL_REFERER_QUN_DETAIL));
-	urdl_download(stream, url,
-		boost::bind(&WebQQ::cb_group_member, this, boost::asio::placeholders::error, _2, _3, boost::ref(group))
-   );
+		url = boost::str(
+			boost::format("%s/api/get_group_info_ext2?gcode=%s&vfwebqq=%s&t=%ld")
+			% "http://s.web2.qq.com"
+			% wide_utf8(group.code)
+			% m_vfwebqq
+			% time(NULL)
+		);
+		stream->set_option(urdl::http::request_referer(LWQQ_URL_REFERER_QUN_DETAIL));
+		urdl_download(stream, url,
+			boost::bind(&WebQQ::cb_group_member, this, boost::asio::placeholders::error, _2, _3, boost::ref(group))
+		);
+	}
+	{
+		url = boost::str(
+			boost::format("%s/api/get_friend_uin2?tuin=%s&verifysession=&type=1&code=&vfwebqq=%s&t=%ld")
+			% "http://s.web2.qq.com"
+			% wide_utf8(group.code)
+			% m_vfwebqq
+			% time(NULL)
+		);
+		read_streamptr stream(new urdl::read_stream(m_io_service));
+		stream->set_option(urdl::http::cookie(this->m_cookies.lwcookies));
+		stream->set_option(urdl::http::request_referer(LWQQ_URL_REFERER_QUN_DETAIL));
+		urdl_download(stream, url,
+			boost::bind(&WebQQ::cb_group_qqnumber, this, boost::asio::placeholders::error, _2, _3, boost::ref(group))
+		);
+	}
 }
 
 // login to server with vc. called by login code or by user
@@ -806,12 +823,44 @@ void WebQQ::cb_group_list(const boost::system::error_code& ec, read_streamptr st
 		// fetching more budy info.
 		BOOST_FOREACH(grouplist::value_type & v, m_groups)
 		{
-			update_group_member(v.second);
+			update_group_detail(v.second);
 		}
 	}
 }
 
-void WebQQ::cb_group_member(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf& buffer, qqGroup & group)
+void WebQQ::cb_group_qqnumber(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf& buffer, qqGroup & group)
+{
+	pt::ptree	jsonobj;
+	std::istream jsondata(&buffer);
+
+    /**
+     * Here, we got a json object like this:
+     * {"retcode":0,"result":{"uiuin":"","account":615050000,"uin":954663841}}
+     *
+     */
+	//处理!
+	try{
+		pt::json_parser::read_json(jsondata, jsonobj);
+		js::write_json(std::cout, jsonobj);
+
+		//TODO, group members
+		if (jsonobj.get<int>("retcode") == 0)
+		{
+			group.qqnum = utf8_wide(jsonobj.get<std::string>("result.account"));
+			lwqq_log(LOG_NOTICE, "qq number of group %ls is %ls\n", group.name.c_str(), group.qqnum.c_str());
+		}
+	}catch (const pt::json_parser_error & jserr){
+		lwqq_log(LOG_ERROR, "parse json error : %s\n", jserr.what());
+
+		boost::asio::deadline_timer *t = new boost::asio::deadline_timer(this->m_io_service, boost::posix_time::seconds(5));
+		t->async_wait(boost::bind(&timeout, t, (boost::function<void()>)(boost::bind(&WebQQ::update_group_detail, this, boost::ref(group)))));
+
+	}catch (const pt::ptree_bad_path & badpath){
+	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
+	}
+}
+
+void WebQQ::cb_group_member(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf& buffer, qqGroup& group)
 {
 	pt::ptree	jsonobj;
 	std::istream jsondata(&buffer);
@@ -838,12 +887,13 @@ void WebQQ::cb_group_member(const boost::system::error_code& ec, read_streamptr 
 		lwqq_log(LOG_ERROR, "parse json error : %s\n", jserr.what());
 
 		boost::asio::deadline_timer *t = new boost::asio::deadline_timer(this->m_io_service, boost::posix_time::seconds(5));
-		t->async_wait(boost::bind(&timeout, t, (boost::function<void()>)(boost::bind(&WebQQ::update_group_member, this, boost::ref(group)))));
+		t->async_wait(boost::bind(&timeout, t, (boost::function<void()>)(boost::bind(&WebQQ::update_group_detail, this, boost::ref(group)))));
 
 	}catch (const pt::ptree_bad_path & badpath){
 	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
 	}
 }
+
 
 void WebQQ::cb_do_login(read_streamptr stream, const boost::system::error_code& ec)
 {
