@@ -102,7 +102,7 @@ public:// signals
 	// 登录成功激发.
 	boost::signal< void ()> siglogin;
 	// 验证码, 需要自行下载url中的图片，然后调用 login_withvc.
-	boost::signal< void ( boost::asio::mutable_buffer )> signeedvc;
+	boost::signal< void ( const boost::asio::const_buffer &)> signeedvc;
 	// 断线的时候激发.
 	boost::signal< void ()> sigoffline;
 
@@ -119,8 +119,7 @@ private:
 	void cb_got_vc(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 	
 	void get_verify_image();
-	void cb_get_verify_image(read_streamptr stream, const boost::system::error_code& ec);
-	void cb_get_verify_image(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, std::size_t goten);
+	void cb_get_verify_image(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 
 	void cb_do_login(read_streamptr stream, const boost::system::error_code& ec);
 	void cb_done_login(read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length);

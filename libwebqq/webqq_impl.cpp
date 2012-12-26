@@ -514,31 +514,16 @@ void WebQQ::get_verify_image()
 		boost::format(LWQQ_URL_VERIFY_IMG) % APPID % m_qqnum
 	);
 
-	read_streamptr loginstream(new urdl::read_stream(m_io_service));
-	loginstream->set_option(urdl::http::cookie(std::string("chkuin=") + m_qqnum));
-	loginstream->async_open(url,boost::bind(&WebQQ::cb_do_login,this, loginstream, boost::asio::placeholders::error) );
+	read_streamptr stream(new urdl::read_stream(m_io_service));
+	stream->set_option(urdl::http::cookie(std::string("chkuin=") + m_qqnum));
+	urdl_download(stream, url,
+		boost::bind(&WebQQ::cb_get_verify_image,this, boost::asio::placeholders::error, _2, _3));
 }
 
-void WebQQ::cb_get_verify_image(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length, size_t goten)
+void WebQQ::cb_get_verify_image(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf& buffer)
 {
-	// keep going to recve more data
-	if (!ec)
-	{
-		goten += length;
-		stream->async_read_some(
-			boost::asio::buffer(response + goten, 16384 - goten),
-			boost::bind(&WebQQ::cb_get_verify_image, this, stream, response, boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred, goten));
-		return ;
-	}
-	if ( ec != boost::asio::error::eof){
-		// error. TODO
-		return ;
-	}
-	goten += length;
-
-	defer(boost::bind(operator delete, response));
 	// verify image is now in response
-	signeedvc(boost::asio::buffer(response, goten));
+	signeedvc(buffer.data());
 }
 
 void WebQQ::cb_done_login(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
@@ -858,13 +843,6 @@ void WebQQ::cb_group_member(const boost::system::error_code& ec, read_streamptr 
 	}catch (const pt::ptree_bad_path & badpath){
 	 	lwqq_log(LOG_ERROR, "bad path error %s\n", badpath.what());
 	}
-}
-
-void WebQQ::cb_get_verify_image(read_streamptr stream, const boost::system::error_code& ec)
-{
-	char * data = new char[8192];
-	boost::asio::async_read(*stream, boost::asio::buffer(data, 8192),
-		boost::bind(&WebQQ::cb_get_verify_image, this,stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
 }
 
 void WebQQ::cb_do_login(read_streamptr stream, const boost::system::error_code& ec)
