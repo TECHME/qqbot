@@ -358,6 +358,34 @@ void WebQQ::update_group_member(qqGroup& group)
 	stream->async_open(url, boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, boost::asio::placeholders::error));
 }
 
+// login to server with vc. called by login code or by user
+// if no verify image needed, then called by login
+// if verify image needed, then the user should listen to signeedvc and call this
+void WebQQ::login_withvc(std::string vccode)
+{
+    std::string md5 = lwqq_enc_pwd(m_passwd.c_str(), m_verifycode.str.c_str(), m_verifycode.uin.c_str());
+
+    // do login !
+    std::string url = boost::str(
+		boost::format(
+		    "%s/login?u=%s&p=%s&verifycode=%s&"
+             "webqq_type=%d&remember_uin=1&aid=1003903&login2qq=1&"
+             "u1=http%%3A%%2F%%2Fweb.qq.com%%2Floginproxy.html"
+             "%%3Flogin2qq%%3D1%%26webqq_type%%3D10&h=1&ptredirect=0&"
+             "ptlang=2052&from_ui=1&pttype=1&dumy=&fp=loginerroralert&"
+             "action=2-11-7438&mibao_css=m_webqq&t=1&g=1") 
+             % LWQQ_URL_LOGIN_HOST
+             % m_qqnum
+             % md5
+             % m_verifycode.str
+             % m_status
+	);
+
+	read_streamptr loginstream(new urdl::read_stream(m_io_service));
+	loginstream->set_option(urdl::http::cookie(m_cookies.lwcookies));
+	loginstream->async_open(url,boost::bind(&WebQQ::cb_do_login,this, loginstream, boost::asio::placeholders::error) );
+}
+
 void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
 {
 	defer(boost::bind(operator delete, response));
@@ -403,6 +431,8 @@ void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system
         /* We need get the ptvfsession from the header "Set-Cookie" */
         update_cookies(&m_cookies, stream->headers(), "ptvfsession", 1);
         lwqq_log(LOG_NOTICE, "Verify code: %s\n", m_verifycode.str.c_str());
+
+        login_withvc(m_verifycode.str);
     } else if (*c == '1') {
         /* We need get the verify image. */
 
@@ -418,35 +448,12 @@ void WebQQ::cb_got_vc(read_streamptr stream, char* response, const boost::system
         m_verifycode.type = "1";
         // ptui_checkVC('1','7ea19f6d3d2794eb4184c9ae860babf3b9c61441520c6df0', '\x00\x00\x00\x00\x04\x7e\x73\xb2');
         m_verifycode.str = s;
-        
-        //TODO, get verify image
-        
-		signeedvc("");
 
         lwqq_log(LOG_NOTICE, "We need verify code image: %s\n", m_verifycode.str.c_str());
+
+        //TODO, get verify image, and call signeedvc
+		signeedvc("");
     }
-    std::string md5 = lwqq_enc_pwd(m_passwd.c_str(), m_verifycode.str.c_str(), m_verifycode.uin.c_str());
-
-    // do login !
-    std::string url = boost::str(
-		boost::format(
-		    "%s/login?u=%s&p=%s&verifycode=%s&"
-             "webqq_type=%d&remember_uin=1&aid=1003903&login2qq=1&"
-             "u1=http%%3A%%2F%%2Fweb.qq.com%%2Floginproxy.html"
-             "%%3Flogin2qq%%3D1%%26webqq_type%%3D10&h=1&ptredirect=0&"
-             "ptlang=2052&from_ui=1&pttype=1&dumy=&fp=loginerroralert&"
-             "action=2-11-7438&mibao_css=m_webqq&t=1&g=1") 
-             % LWQQ_URL_LOGIN_HOST
-             % m_qqnum
-             % md5
-             % m_verifycode.str
-             % m_status
-	);
-
-	read_streamptr loginstream(new urdl::read_stream(m_io_service));
-	loginstream->set_option(urdl::http::cookie(m_cookies.lwcookies));
-	loginstream->async_open(url,boost::bind(&WebQQ::cb_do_login,this, loginstream, boost::asio::placeholders::error) );
-
 }
 
 void WebQQ::cb_done_login(read_streamptr stream, char* response, const boost::system::error_code& ec, std::size_t length)
