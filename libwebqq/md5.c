@@ -92,7 +92,7 @@ lutil_md5_file (const char *filename, char *buf)
     MD5Init(&ctx);
     f = fopen(filename,"rb");
     if (!f) return 0;
-    while ((i = read(f,buffer,sizeof buffer)) > 0) {
+    while ((i = fread(buffer,1,sizeof buffer,f)) > 0) {
         MD5Update(&ctx,buffer,i);
     }
     fclose(f);
