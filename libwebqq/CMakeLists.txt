@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(libwebqq)
 
-find_package(Boost 1.46 REQUIRED COMPONENTS signals)
+find_package(Boost 1.46 REQUIRED COMPONENTS signals system)
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/urdl/include/)

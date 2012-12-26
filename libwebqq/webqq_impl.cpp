@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+#include <iostream>
 #include <boost/bind.hpp>
 #include <urdl/read_stream.hpp>
 #include <urdl/http.hpp>
@@ -27,9 +28,9 @@ namespace js = boost::property_tree::json_parser;
 #include "webqq_impl.h"
 #include "defer.hpp"
 #include "url.hpp"
+#include "logger.h"
 
 extern "C"{
-#include "logger.h"
 #include "md5.h"
 };
 
@@ -588,7 +589,7 @@ void WebQQ::cb_online_status(read_streamptr stream, char* response, const boost:
 			do_poll_one_msg();
 		}
 	}catch (const pt::json_parser_error & jserr){
-		printf("parse json error :  %s\n", response);
+		printf("parse json error : %s \n\t %s\n", jserr.what(), response);
 	}catch (const pt::ptree_bad_path & jserr){
 		printf("parse bad path error :  %s\n", jserr.what());
 	}
@@ -604,45 +605,69 @@ void WebQQ::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 			boost::asio::placeholders::bytes_transferred, goten));
 		return ;
 	}
-	if (ec != boost::asio::error::eof){
-		delete response;
-		return ;
-	}
-	goten += length;
 
-	response[goten]=0;
 	defer(boost::bind(operator delete, response));
+
 	//开启新的 poll	
 	do_poll_one_msg();
 
-	pt::wptree	jsonobj;
+	if (ec != boost::asio::error::eof){
+		return;
+	}
+	goten += length;
+	response[goten]=0;	
 	std::wstringstream jsondata;
-	jsondata <<  response;
+	jsondata << std::string(response).c_str();
 
 	//处理!
 	try{
+		pt::wptree	jsonobj;
 		pt::json_parser::read_json(jsondata, jsonobj);
 		process_msg(jsonobj);
 	}catch (const pt::json_parser_error & jserr){
-		printf("parse json error :  %s\n", response);
+		lwqq_log(LOG_ERROR, "parse json error : %s\n=========\n%s\n=========\n",jserr.what(), response);
 	}
 }
 
-void WebQQ::process_msg(pt::wptree jstree)
+void WebQQ::process_msg(const pt::wptree &jstree)
 {
 	//TODO,  在这里解析json数据.
 	std::wstring retcode =  jstree.get<std::wstring>(L"retcode");
 	try{
-		BOOST_FOREACH(pt::wptree::value_type result, jstree.get_child(L"result"))
+		BOOST_FOREACH(const pt::wptree::value_type & result, jstree.get_child(L"result"))
 		{
-			std::wstring polltype = result.second.get<std::wstring>(L"poll_type");
+			if (result.second.get<std::wstring>(L"poll_type") == L"group_message"){
+				std::wstring group_code = result.second.get<std::wstring>(L"value.group_code");
+				std::wstring who = result.second.get<std::wstring>(L"value.send_uin");
 
-			if (polltype == L"group_message"){
-				std::wstring group_code = result.second.get_child(L"value").get<std::wstring>(L"group_code");
-				std::wstring who = result.second.get_child(L"value").get<std::wstring>(L"send_uin");
-				// get group name
-				// get sender info
-				siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), result.second.get_child(L"value").get_child(L"content"));
+				//parse content
+// 				js::write_json(std::wcout, result.second.get_child(L"value.content"));
+				
+				std::vector<qqMsg>	messagecontent;
+
+				BOOST_FOREACH(const pt::wptree::value_type & content,result.second.get_child(L"value.content"))
+				{
+					if ( content.second.count(L"")){
+						if (content.second.begin()->second.data() == L"font"){
+							qqMsg msg;
+							msg.type = qqMsg::LWQQ_MSG_FONT;
+							msg.font = content.second.rbegin()->second.get<std::wstring>(L"name");		  
+						}else if (content.second.begin()->second.data() == L"face"){
+						}else if (content.second.begin()->second.data() == L"cface"){
+							qqMsg msg;
+							msg.type = qqMsg::LWQQ_MSG_CFACE;
+							msg.cface = content.second.rbegin()->second.get<std::wstring>(L"name");
+							messagecontent.push_back(msg);							
+						}
+					}else{
+						//聊天字符串就在这里.
+						qqMsg msg;
+						msg.type = qqMsg::LWQQ_MSG_TEXT;
+						msg.text = content.second.data();
+						messagecontent.push_back(msg);
+					}
+				}
+ 				siggroupmessage(wstring2ansi(group_code), wstring2ansi(who), messagecontent);
 			}
 		}
 	}
@@ -733,9 +758,6 @@ void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, char* respon
 	pt::ptree	jsonobj;
 	std::stringstream jsondata;
 	jsondata <<  response;
-	
-	std::cout <<  response << std::endl;
-
 	//处理!
 	try{
 		pt::json_parser::read_json(jsondata, jsonobj);

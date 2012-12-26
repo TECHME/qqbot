@@ -20,6 +20,7 @@
 #ifndef WEBQQ_H
 #define WEBQQ_H
 
+#include <vector>
 #include <boost/asio.hpp>
 #include <boost/function.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -72,11 +73,24 @@ struct qqGroup{
 	}
 };
 
+struct qqMsg{
+	enum {
+		LWQQ_MSG_FONT, 
+		LWQQ_MSG_TEXT, 
+		LWQQ_MSG_FACE, 
+		LWQQ_MSG_CFACE, 
+	}type;
+ 	std::wstring font;//font name, size color.
+	std::wstring text;
+	std::wstring face;
+	std::wstring cface;
+};
+
 class webqq
 {
 public:
 	webqq(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
-	void on_group_msg(boost::function<void (std::string group_code, std::string who, const pt::wptree & )> cb);
+	void on_group_msg(boost::function<void (std::string group_code, std::string who, const std::vector<qqMsg> & )> cb);
 	
 	qqGroup * get_Group_by_gid(std::string);
 private:

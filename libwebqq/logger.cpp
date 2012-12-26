@@ -17,9 +17,8 @@
 # include <unistd.h>
 #endif
 
-extern "C"{
 #include "logger.h"
-}
+
 static const char *levels[] = {
 	"DEBUG",
 	"NOTICE",

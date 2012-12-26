@@ -1,11 +1,10 @@
 #include <clocale>
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
-#include <boost/property_tree/json_parser.hpp>
-namespace js = boost::property_tree::json_parser;
 #include "webqq.h"
+#include "logger.h"
 
-static void on_group_msg(std::string group_code, std::string who, const pt::wptree & msg, webqq & qqclient)
+static void on_group_msg(std::string group_code, std::string who, const std::vector<qqMsg> & msg, webqq & qqclient)
 {
 	qqBuddy * buddy = NULL;
 	qqGroup * group = qqclient.get_Group_by_gid(group_code);
@@ -17,21 +16,19 @@ static void on_group_msg(std::string group_code, std::string who, const pt::wptr
 	if (buddy)
 		nick = buddy->nick;
 
-	std::cout <<  "(群 :" <<  groupname <<  "), " << nick <<  "说：" ;
-	
-	BOOST_FOREACH(pt::wptree::value_type content, msg)
+	std::wcout <<  L"(群 :" <<  groupname.c_str() <<  L"), " << nick.c_str() <<  L"说：" ;
+	std::wcout.flush();
+
+	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
-		if (content.second.count(L"")==0)
-			std::wcout <<  content.second.data();
-// 		std::wcout <<  content.second.get<std::wstring>(L"") <<  std::endl;
+		if (qqmsg.type==qqMsg::LWQQ_MSG_TEXT)
+			std::wcout <<  qqmsg.text <<  std::endl;
 	}
-	std::cout <<  std::endl;
-// 	js::write_json(std::wcout, msg);
 }
 
 int main()
 {
-	std::setlocale(LC_ALL, "");
+	setlocale(LC_ALL, "");
 	boost::asio::io_service io_service;
 	webqq qqclient(io_service, "2664046919", "jackbotwgm123");
 
