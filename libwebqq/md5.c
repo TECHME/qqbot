@@ -44,8 +44,9 @@
  * $Id: md5.c,v 1.1.1.1 2004/04/02 05:11:38 deklund2 Exp $
  *
  */
- 
+#ifndef WIN32
 #include <endian.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #include "md5.h"

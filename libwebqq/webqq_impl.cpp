@@ -77,12 +77,18 @@ static std::string generate_clientid()
     
     srand(time(NULL));
     r = rand() % 90 + 10;
-    if (gettimeofday(&tv, NULL)) {
-        return NULL;
-    }
-    t = tv.tv_usec % 1000000;
-    snprintf(buf, sizeof(buf), "%d%ld", r, t);
-    return buf;
+
+#ifdef WIN32
+	sprintf(buf, "%d%d%d%d", r, r, r);
+#else
+	if (gettimeofday(&tv, NULL)) {
+		return NULL;
+	}
+	t = tv.tv_usec % 1000000;
+	snprintf(buf, sizeof(buf), "%d%ld", r, t);
+#endif
+
+	return buf;
 }
 
 // ptui_checkVC('0','!IJG, ptui_checkVC('0','!IJG', '\x00\x00\x00\x00\x54\xb3\x3c\x53');
@@ -243,7 +249,7 @@ static std::string lwqq_enc_pwd(const char *pwd, const char *vc, const char *uin
     lutil_md5_data((unsigned char *)buf, 16 + uin_byte_length, (char *)buf);
     
     /* Equal to var G=md5(H+C.verifycode.value.toUpperCase()); */
-    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", vc);
+    sprintf(buf + strlen(buf), /*sizeof(buf) - strlen(buf),*/ "%s", vc);
     upcase_string(buf, strlen(buf));
 
     lutil_md5_data((unsigned char *)buf, strlen(buf), (char *)buf);
@@ -284,12 +290,21 @@ qq::WebQQ::WebQQ(boost::asio::io_service& _io_service,
 	:m_io_service(_io_service), m_qqnum(_qqnum), m_passwd(_passwd), m_status(_status)
 {
 	//开始登录!
+// 
+// 	//首先获得版本.
+// 	read_streamptr stream(new urdl::read_stream(m_io_service));
+//     lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
+// 
+// 	stream->async_open(LWQQ_URL_VERSION, boost::bind(&WebQQ::cb_get_version, this, stream,  boost::asio::placeholders::error) );	
+}
 
+void qq::WebQQ::start()
+{
 	//首先获得版本.
 	read_streamptr stream(new urdl::read_stream(m_io_service));
-    lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
+	lwqq_log(LOG_DEBUG, "Get webqq version from %s\n", LWQQ_URL_VERSION);
 
-	stream->async_open(LWQQ_URL_VERSION, boost::bind(&WebQQ::cb_get_version, this, stream,  boost::asio::placeholders::error) );	
+	stream->async_open(LWQQ_URL_VERSION, boost::bind(&WebQQ::cb_get_version, this, stream,  boost::asio::placeholders::error) );
 }
 
 void WebQQ::cb_got_version(char* response, const boost::system::error_code& ec, std::size_t length)
@@ -305,10 +320,10 @@ void WebQQ::cb_got_version(char* response, const boost::system::error_code& ec, 
             return ;
         }
         s++;
-        char v[t - s + 1];
-        memset(v, 0, t - s + 1);
-        strncpy(v, s, t - s);
-        this->m_version = v;
+		boost::shared_array<char> v(new char[t - s + 1]);
+        memset(v.get(), 0, t - s + 1);
+        strncpy(v.get(), s, t - s);
+        this->m_version = v.get();
         //开始真正的登录
         std::cout << "Get webqq version: " <<  this->m_version <<  std::endl;
 

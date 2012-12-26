@@ -38,4 +38,9 @@ qqGroup * webqq::get_Group_by_gid(std::string gid)
 	return NULL;
 }
 
+void webqq::start()
+{
+	impl->start();
+}
+
 

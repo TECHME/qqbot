@@ -97,6 +97,7 @@ class WebQQ
 public:
 	WebQQ(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
 
+	void start();
 	void send_simple_message( );
 	void update_group_list();
     void update_group_member(qqGroup &  group);
