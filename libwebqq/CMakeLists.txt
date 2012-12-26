@@ -6,6 +6,7 @@ find_package(Boost 1.46 REQUIRED COMPONENTS signals system)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/urdl/include/)
 
+add_definitions(-DURDL_DISABLE_SSL=1)
 
 add_library(libwebqq STATIC webqq.cpp webqq_impl.cpp url.cpp logger.cpp md5.c)
 

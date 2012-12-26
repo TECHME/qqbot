@@ -16,13 +16,16 @@ static void on_group_msg(std::string group_code, std::string who, const std::vec
 	if (buddy)
 		nick = buddy->nick;
 
-	std::wcout <<  L"(群 :" <<  groupname.c_str() <<  L"), " << nick.c_str() <<  L"说：" ;
-	std::wcout.flush();
+	std::cout <<  "(群 :";
+	std::cout <<  groupname;
+	std::cout <<  "), ";
+	std::cout << nick;
+	std::cout <<  "说：";
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
-		if (qqmsg.type==qqMsg::LWQQ_MSG_TEXT)
-			std::wcout <<  qqmsg.text <<  std::endl;
+		if (qqmsg.type == qqMsg::LWQQ_MSG_TEXT)
+			printf("%ls\n", qqmsg.text.c_str());
 	}
 }
 

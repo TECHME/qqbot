@@ -602,9 +602,9 @@ void WebQQ::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 	if (!ec)
 	{
 		goten += length;
-		boost::asio::async_read(*stream, boost::asio::buffer(response + goten, 16384 - goten),
-		boost::bind(&WebQQ::cb_poll_msg, this, stream, response, boost::asio::placeholders::error,
-			boost::asio::placeholders::bytes_transferred, goten));
+		stream->async_read_some(
+			boost::asio::buffer(response + goten, 16384 - goten),
+			boost::bind(&WebQQ::cb_poll_msg, this, stream, response, boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred, goten));
 		return ;
 	}
 
@@ -617,8 +617,6 @@ void WebQQ::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 		return;
 	}
 
-	goten += length;
-	response[goten]=0;	
 	std::wstringstream jsondata;
 	jsondata << std::string(response).c_str();
 	pt::wptree	jsonobj;
@@ -638,8 +636,7 @@ void WebQQ::cb_poll_msg(read_streamptr stream, char* response, const boost::syst
 
 void WebQQ::process_msg(const pt::wptree &jstree)
 {
-	setlocale(LC_ALL, "");
-	//TODO,  在这里解析json数据.
+	//在这里解析json数据.
 	if (jstree.get<int>(L"retcode"))
 		return;
 	BOOST_FOREACH(const pt::wptree::value_type & result, jstree.get_child(L"result"))
@@ -744,9 +741,9 @@ void WebQQ::cb_group_member(qqGroup & group, read_streamptr stream, char* respon
 	if (!ec)
 	{
 		goten += length;
-		boost::asio::async_read(*stream, boost::asio::buffer(response + goten, 16384 - goten),
-		boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, response, boost::asio::placeholders::error,
-			boost::asio::placeholders::bytes_transferred, goten));
+		stream->async_read_some(
+			boost::asio::buffer(response + goten, 16384 - goten),
+			boost::bind(&WebQQ::cb_group_member, this, boost::ref(group), stream, response, boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred, goten));
 		return ;
 	}
 	if (ec != boost::asio::error::eof){
@@ -824,6 +821,7 @@ void WebQQ::cb_online_status(read_streamptr stream, const boost::system::error_c
 void WebQQ::cb_poll_msg(read_streamptr stream, const boost::system::error_code& ec)
 {
 	char * data = new char[16384];
+	memset(data, 0, 16384);
 	boost::asio::async_read(*stream, boost::asio::buffer(data, 16384),
 		boost::bind(&WebQQ::cb_poll_msg, this, stream, data, boost::asio::placeholders::error,  boost::asio::placeholders::bytes_transferred, 0) );
 }
