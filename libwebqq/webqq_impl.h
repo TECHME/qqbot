@@ -138,9 +138,7 @@ private:
 	void process_msg(const pt::wptree & jstree);
 
 	void cb_group_list(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
-
-	void cb_group_member(qqGroup &, read_streamptr stream, const boost::system::error_code& ec);
-	void cb_group_member(qqGroup &,read_streamptr stream, char * response, const boost::system::error_code& ec, std::size_t length, size_t goten);
+	void cb_group_member(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, qqGroup &);
 private:
     boost::asio::io_service & m_io_service;
 
