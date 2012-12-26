@@ -28,7 +28,7 @@ namespace po = boost::program_options;
 
 #include "libirc/irc.h"
 #include "libwebqq/webqq.h"
-#include "utf8/core.h"
+#include "utf8/utf8.h"
 
 #define QQBOT_VERSION "0.0.1"
 
@@ -36,10 +36,10 @@ class qqlog : public boost::noncopyable
 {
 public:
 	typedef boost::shared_ptr<std::ofstream> ofstream_ptr;
-	typedef std::map<std::string, ofstream_ptr> loglist;
+	typedef std::map<std::wstring, ofstream_ptr> loglist;
 
 public:
-	qqlog() : m_path(".")
+	qqlog() : m_path(L".")
 	{}
 
 	~qqlog()
@@ -47,13 +47,17 @@ public:
 
 public:
 	// 设置日志保存路径.
-	void log_path(const std::string &path)
+	void log_path(const std::wstring &path)
 	{
 		m_path = path;
 	}
-
+	// 设置日志保存路径.
+	void log_path(const std::string &path)
+	{
+		m_path = utf8_wide(path);
+	}
 	// 添加日志消息.
-	bool add_log(const std::string &groupid, const std::string &msg)
+	bool add_log(const std::wstring &groupid, const std::string &msg)
 	{
 		boost::mutex::scoped_lock l(m_mutex);
 
@@ -94,7 +98,7 @@ public:
 protected:
 
 	// 构造路径.
-	std::string make_path(const std::string &groupid) const
+	std::string make_path(const std::wstring &groupid) const
 	{
 		return (m_path / groupid).string();
 	}
@@ -111,7 +115,7 @@ protected:
 	}
 
 	// 创建对应的日志文件, 返回日志文件指针.
-	ofstream_ptr create_file(const std::string &groupid) const
+	ofstream_ptr create_file(const std::wstring &groupid) const
 	{
 		// 生成对应的路径.
 		std::string save_path = make_path(groupid);
@@ -159,26 +163,13 @@ protected:
 private:
 	boost::mutex m_mutex;
 	loglist m_group_list;
-	fs::path m_path;
+	fs::wpath m_path;
 };
 
 static qqlog logfile;
 static bool resend_img = false;
 
-
-typedef int (*cfunc_t)(int argc, char **argv);
-
-typedef struct CmdInfo {
-	const char	*name;
-	const char	*altname;
-	cfunc_t		cfunc;
-} CmdInfo;
-
 static std::string progname;
-
-static void irc_message_got(const IrcMsg pMsg)
-{
-}
 
 // 简单的消息命令控制.
 static void qqbot_control(const std::string msg)
@@ -206,58 +197,9 @@ static void qqbot_control(const std::string msg)
 }
 
 #if 0
-
-//TODO
 //将聊天信息写入日志文件！
 static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 {
-	LwqqMsgContent *c;
-	std::string buf;
-	LwqqErrorCode err;
-
-	TAILQ_FOREACH(c, &mmsg->content, entries) {
-		if (c->type == LwqqMsgContent::LWQQ_CONTENT_STRING) {
-			
-			std::string datastr = c->data.str;
-			if (!datastr.empty()) {
-				boost::replace_all(datastr, "&", "&amp;");
-				boost::replace_all(datastr, "<", "&lt;");
-				boost::replace_all(datastr, ">", "&gt;");
-				boost::replace_all(datastr, "  ", "&nbsp;");
-			}
-			buf += datastr;			
-		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_OFFPIC) {
-			printf ("Receive picture msg: %s\n", c->data.img.file_path);
-		} else if (c->type == LwqqMsgContent::LWQQ_CONTENT_CFACE) {
-
-			if (resend_img) {
-				LwqqGroup* group = lwqq_group_find_group_by_gid(lc, mmsg->from);
-				if (group) {
-					const char * nick = mmsg->group.send;
-					LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-					if (by)
-						nick = by->nick;
-
-					printf ("Receive cface msg: %s\n", c->data.cface.name);
-					printf ("\t\thttp://w.qq.com/cgi-bin/get_group_pic?pic=%s\n", c->data.cface.name);
-
-					std::string url = boost::str(boost::format(
-							"%s just send an img http://w.qq.com/cgi-bin/get_group_pic?pic=%s") 
-							% nick
-							% c->data.cface.name);
-					lwqq_msg_send_simple(lc, LWQQ_MT_GROUP_MSG, mmsg->from, url.c_str());
-				}
-			}
-			buf += boost::str(boost::format(
-				"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" >") 
-				% c->data.cface.name);
-
-		} else {
-				printf ("Receive face msg: %d\n", c->data.face);
-				buf += boost::str(boost::format(
-					"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % c->data.face);
-		}
-	}
 
 	// 写入到日志.
 	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
@@ -270,9 +212,6 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 		// 构造消息.
 		std::string message = nick + "说：" + buf;
 
-		// qq消息控制.
-		qqbot_control(message);
-
 		// 保存到日志.
 		logfile.add_log(group->account, message);
 
@@ -281,6 +220,10 @@ static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
 	}	
 }
 #endif
+
+static void irc_message_got(const IrcMsg pMsg)
+{
+}
 
 static void on_group_msg(std::wstring group_code, std::wstring who, const std::vector<qqMsg> & msg, webqq & qqclient)
 {
@@ -296,8 +239,8 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 		
 	std::wstring message;
 
-	//message += nick;
-	
+	message += nick;
+	message += L" 说：";
 
 	std::wcout <<  L"(群 :";
 	std::wcout <<  groupname;
@@ -307,10 +250,41 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
-		if (qqmsg.type == qqMsg::LWQQ_MSG_TEXT){
-			printf("%ls\n", qqmsg.text.c_str());
+		std::wstring buf;
+		switch (qqmsg.type)
+		{
+			case qqMsg::LWQQ_MSG_TEXT:
+			{
+				buf = qqmsg.text;
+				if (!buf.empty()) {
+					boost::replace_all(buf, "&", "&amp;");
+					boost::replace_all(buf, "<", "&lt;");
+					boost::replace_all(buf, ">", "&gt;");
+					boost::replace_all(buf, "  ", "&nbsp;");
+				}
+			}
+			break;
+			case qqMsg::LWQQ_MSG_CFACE:			
+			{
+				std::wstring buf = boost::str(boost::wformat(
+				L"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" > ")
+				% qqmsg.cface);
+				if (resend_img){
+					//TODO send it
+				}
+			}break;
+			case qqMsg::LWQQ_MSG_FACE:
+			{
+				buf = boost::str(boost::wformat(
+					L"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % qqmsg.face);
+			}break;
 		}
+		message += buf;
 	}
+	// qq消息控制.
+	qqbot_control(wide_utf8(message));
+	// 记录.
+	printf("%ls\n", message.c_str());
 }
 
 fs::path configfilepath()
@@ -378,7 +352,8 @@ int main(int argc, char *argv[])
 	}
 
 	// 设置日志自动记录目录.
-	logfile.log_path(logdir);
+	if (! logdir.empty())
+		logfile.log_path(logdir);
 
     if (isdaemon)
 		daemon(0, 0);
