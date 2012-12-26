@@ -156,6 +156,7 @@ private:
 
 	typedef std::map<std::string, qqGroup>	grouplist;
 	grouplist	groups;
+	friend class webqq;
 };
 
 };

@@ -70,6 +70,8 @@ class webqq
 public:
 	webqq(boost::asio::io_service & asioservice, std::string qqnum, std::string passwd, LWQQ_STATUS status = LWQQ_STATUS_ONLINE);
 	void on_group_msg(boost::function<void (std::string group_code, std::string who, const pt::wptree & )> cb);
+	
+	qqGroup * get_Group_by_gid(std::string);
 private:
     class qq::WebQQ * const impl;
 };
