@@ -63,6 +63,13 @@ struct qqGroup{
 	std::string code;
 
 	std::map<std::string, qqBuddy>	memberlist;
+
+	qqBuddy * get_Buddy_by_uin(std::string uin){
+		std::map<std::string, qqBuddy>::iterator it = memberlist.find(uin);
+		if (it!=memberlist.end())
+			return &it->second;
+		return NULL;
+	}
 };
 
 class webqq
