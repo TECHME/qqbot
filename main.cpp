@@ -439,9 +439,10 @@ int main(int argc, char *argv[])
 	boost::asio::io_service asio;
 
 	webqq qqclient(asio, qqnumber, password);
-	
-	IrcClient ircclient(asio, boost::bind(&irc_message_got, _1, boost::ref(qqclient)), "irc.freenode.net", "6667");
-	ircclient.login(ircnick,std::string("#") + ircroom);
+
+	IrcClient ircclient(asio, ircnick);
+	ircclient.login(boost::bind(&irc_message_got, _1, boost::ref(qqclient)));
+	ircclient.join(std::string("#") + ircroom);
 
 	qqclient.start();
 	qqclient.on_group_msg(boost::bind(on_group_msg, _1, _2, _3, boost::ref(qqclient), boost::ref(ircclient)));
