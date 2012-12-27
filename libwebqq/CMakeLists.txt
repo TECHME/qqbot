@@ -13,7 +13,3 @@ add_subdirectory(urdl)
 add_library(libwebqq STATIC webqq.cpp webqq_impl.cpp url.cpp logger.cpp md5.c)
 
 target_link_libraries(libwebqq urdl ${Boost_LIBRARIES})
-
-add_executable(test test.cpp)
-
-target_link_libraries(test libwebqq)
