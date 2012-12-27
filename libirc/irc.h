@@ -22,7 +22,7 @@ public:
     ~IrcClient();
 private:
     void handle_connect(const boost::system::error_code& err);
-    void handle_write_request(const boost::system::error_code& err);
+    void handle_write_request(const boost::system::error_code& err, std::size_t bytewritedr);
     void handle_read_request(const boost::system::error_code& err);
     void send_request(const std::string& msg);
     void process_request();

@@ -110,10 +110,14 @@ void IrcClient::handle_connect(const boost::system::error_code& err)
 {
     if (!err)
     {
-        boost::asio::async_write(socket_, request_,
-            boost::bind(&IrcClient::handle_write_request, this,
-            boost::asio::placeholders::error));
-    }
+		if (request_.size())
+			boost::asio::async_write(socket_, request_,
+				boost::bind(&IrcClient::handle_write_request, this,
+					boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
+        boost::asio::async_read_until(socket_, response_, "\n",
+            boost::bind(&IrcClient::handle_read_request, this,
+				boost::asio::placeholders::error));
+	}
     else
     {
 #ifdef DEBUG
@@ -122,14 +126,15 @@ void IrcClient::handle_connect(const boost::system::error_code& err)
     }
 }
 
-void IrcClient::handle_write_request(const boost::system::error_code& err)
+void IrcClient::handle_write_request(const boost::system::error_code& err, std::size_t bytewrited)
 {
     if (!err)
     {
-
-        boost::asio::async_read_until(socket_, response_, "\n",
-            boost::bind(&IrcClient::handle_read_request, this,
-            boost::asio::placeholders::error));
+		request_.consume(bytewrited);
+		if (request_.size())
+			boost::asio::async_write(socket_, request_,
+				boost::bind(&IrcClient::handle_write_request, this,
+					boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
     }
     else
     {
@@ -163,6 +168,6 @@ void IrcClient::send_request(const std::string& msg)
     request_stream << msg+"\r\n";
 
     boost::asio::async_write(socket_, request_,
-        boost::bind(&IrcClient::handle_read_request, this,
-        boost::asio::placeholders::error));
+        boost::bind(&IrcClient::handle_write_request, this,
+        boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
