@@ -196,31 +196,6 @@ static void qqbot_control(const std::string msg)
 	}
 }
 
-#if 0
-//将聊天信息写入日志文件！
-static void log_message(LwqqClient  *lc, LwqqMsgMessage *mmsg)
-{
-
-	// 写入到日志.
-	LwqqGroup* group =  lwqq_group_find_group_by_gid(lc, mmsg->from);
-	if (group) {
-		std::string nick = mmsg->group.send;
-		LwqqSimpleBuddy* by = lwqq_group_find_group_member_by_uin(group, mmsg->group.send);
-		if (by)
-			nick = by->nick;
-
-		// 构造消息.
-		std::string message = nick + "说：" + buf;
-
-		// 保存到日志.
-		logfile.add_log(group->account, message);
-
-	} else {
-		printf("Receive message: %s -> %s , %s\n", mmsg->from, mmsg->to, buf.c_str());	
-	}	
-}
-#endif
-
 static void irc_message_got(const IrcMsg pMsg)
 {
 }
