@@ -201,8 +201,13 @@ static void qq_msg_sended(const boost::system::error_code& ec)
 	
 }
 
-static void irc_message_got(const IrcMsg pMsg)
+static void irc_message_got(const IrcMsg pMsg,  webqq & qqclient)
 {
+	std::cout <<  pMsg.msg<< std::endl;
+	qqGroup* group = qqclient.get_Group_by_qq(L"3597082");
+	if (group){
+		qqclient.send_group_message(*group, L"irc says", qq_msg_sended);
+	}
 }
 
 static void on_group_msg(std::wstring group_code, std::wstring who, const std::vector<qqMsg> & msg, webqq & qqclient, IrcClient & ircclient)
@@ -350,10 +355,11 @@ int main(int argc, char *argv[])
 
 	boost::asio::io_service asio;
 
-	IrcClient ircclient(asio, irc_message_got, "irc.freenode.net", "6667");
+	webqq qqclient(asio, qqnumber, password);
+	
+	IrcClient ircclient(asio, boost::bind(&irc_message_got, _1, boost::ref(qqclient)), "irc.freenode.net", "6667");
 	ircclient.login(ircnick,"#avplayer");
 
-	webqq qqclient(asio, qqnumber, password);
 	qqclient.start();
 	qqclient.on_group_msg(boost::bind(on_group_msg, _1, _2, _3, boost::ref(qqclient), boost::ref(ircclient)));
 

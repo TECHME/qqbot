@@ -38,6 +38,16 @@ qqGroup * webqq::get_Group_by_gid(std::wstring gid)
 	return NULL;
 }
 
+qqGroup* webqq::get_Group_by_qq(std::wstring qq)
+{
+	qq::grouplist::iterator it = impl->m_groups.begin();
+	for(;it != impl->m_groups.end();it ++){
+		if ( it->second.qqnum == qq)
+			return & it->second;
+	}
+	return NULL;
+}
+
 void webqq::start()
 {
 	impl->start();
