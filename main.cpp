@@ -266,7 +266,10 @@ static void irc_message_got(const IrcMsg pMsg,  webqq & qqclient)
 			{
 				qqGroup* group = qqclient.get_Group_by_qq(utf8_wide(groupmember.substr(3)));
 				if (group){
-					qqclient.send_group_message(*group, boost::str(boost::format("%s 说：%s") % pMsg.whom % pMsg.msg), qq_msg_sended);
+					std::string forwarder = boost::str(boost::format("%s 说：%s") % pMsg.whom % pMsg.msg);
+					qqclient.send_group_message(*group, forwarder , qq_msg_sended);
+					// log into
+					logfile.add_log(group->qqnum, std::string("[irc]") + forwarder );
 				}
 			}else if (groupmember[0]=='i' && groupmember[1]=='r'&&groupmember[1]=='c'){
 				//TODO, irc频道之间转发.
