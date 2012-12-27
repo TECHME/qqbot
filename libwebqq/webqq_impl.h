@@ -94,8 +94,8 @@ public:
 	void login_withvc(std::string vccode);
 
 	void start();
-	void send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
-	void send_group_message(qqGroup &  group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
+	void send_group_message(std::wstring group, std::string msg, boost::function<void (const boost::system::error_code& ec)> donecb);
+	void send_group_message(qqGroup &  group, std::string msg, boost::function<void (const boost::system::error_code& ec)> donecb);
 	void update_group_list();
     void update_group_detail(qqGroup &  group);
 

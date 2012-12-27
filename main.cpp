@@ -206,7 +206,7 @@ static void irc_message_got(const IrcMsg pMsg,  webqq & qqclient)
 	std::cout <<  pMsg.msg<< std::endl;
 	qqGroup* group = qqclient.get_Group_by_qq(L"3597082");
 	if (group){
-		qqclient.send_group_message(*group, L"irc says", qq_msg_sended);
+		qqclient.send_group_message(*group, boost::str(boost::format("[irc][%s]说：%s") % pMsg.whom % pMsg.msg), qq_msg_sended);
 	}
 }
 
@@ -255,7 +255,7 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 				std::string imgurl = boost::str(boost::format("http://w.qq.com/cgi-bin/get_group_pic?pic=%s")				% wide_utf8(qqmsg.cface));
 				if (resend_img){
 					//TODO send it
-					qqclient.send_group_message(group_code, utf8_wide(imgurl), qq_msg_sended);
+					qqclient.send_group_message(group_code, imgurl, qq_msg_sended);
 				}
 				ircmsg += imgurl;
 			}break;

@@ -382,12 +382,12 @@ void qq::WebQQ::start()
 	);
 }
 
-void WebQQ::send_group_message(qqGroup& group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
+void WebQQ::send_group_message(qqGroup& group, std::string msg, boost::function<void (const boost::system::error_code& ec)> donecb)
 {
 	send_group_message(group.gid, msg, donecb);
 }
 
-void WebQQ::send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
+void WebQQ::send_group_message(std::wstring group, std::string msg, boost::function<void (const boost::system::error_code& ec)> donecb)
 {
 	//unescape for POST
 	std::string postdata = boost::str(
@@ -399,7 +399,7 @@ void WebQQ::send_group_message(std::wstring group, std::wstring msg, boost::func
 				"\"msg_id\":%ld,"
 				"\"clientid\":\"%s\","
 				"\"psessionid\":\"%s\"}&clientid=%s&psessionid=%s")
-		% wide_utf8(group) % parse_unescape(wide_utf8(msg).c_str()) % m_msg_id % m_clientid % m_psessionid 
+		% wide_utf8(group) % parse_unescape(msg) % m_msg_id % m_clientid % m_psessionid 
 		% m_clientid
 		% m_psessionid
 	);
