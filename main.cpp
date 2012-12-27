@@ -294,7 +294,7 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 	message += nick;
 	message += L" 说：";
 	
-	ircmsg = boost::str(boost::format("*[qqbot][%s]：") % wide_utf8(nick));
+	ircmsg = boost::str(boost::format("qq(%s): ") % wide_utf8(nick));
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
@@ -349,7 +349,7 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 	 	BOOST_FOREACH(std::string groupmember, find_group(from))
 		{
 			if (groupmember != from){
-				if (groupmember[0]=='i' && groupmember[1]=='r'&&groupmember[1]=='c'){
+				if (groupmember[0]=='i' && groupmember[1]=='r'&&groupmember[2]=='c'){
 					ircclient.chat(std::string("#") + groupmember.substr(4), ircmsg);
 				}
 			}
