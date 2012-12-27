@@ -348,8 +348,8 @@ void WebQQ::cb_got_version(const boost::system::error_code& ec, read_streamptr s
 	if (strstr(response, "ptuiV"))
 	{
         char *s, *t;
-        s = strchr(response, '(');
-        t = strchr(response, ')');
+        s = (char*)strchr(response, '(');
+        t = (char*)strchr(response, ')');
         if (!s || !t  ) {
             sigerror( 0, 0);
             return ;
@@ -472,8 +472,8 @@ void WebQQ::cb_got_vc(const boost::system::error_code& ec, read_streamptr stream
 	*/
 	const char * response = boost::asio::buffer_cast<const char * >(buffer.data());
 	char *s;
-	char *c = strstr(response, "ptui_checkVC");
-    c = strchr(response, '\'');
+	char *c = (char*)strstr(response, "ptui_checkVC");
+    c = (char*)strchr(response, '\'');
     c++;
     if (*c == '0') {
         /* We got the verify code. */
