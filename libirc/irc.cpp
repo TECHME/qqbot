@@ -9,19 +9,16 @@ IrcClient::IrcClient(boost::asio::io_service &io_service,const privmsg_cb &cb,co
 
     if (!ec)
     {
-        boost::asio::connect(socket_, endpoint_iterator,ec);
-        if (!ec)
-        {
-            boost::asio::async_read_until(socket_, response_, "\n",
-                boost::bind(&IrcClient::handle_read_request, this,
-                boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred));
-            return;
-        }
+        boost::asio::async_connect(socket_, endpoint_iterator,
+            boost::bind(&IrcClient::handle_connect_request, this,
+            boost::asio::placeholders::error));
     }
-
+    else
+    {
 #ifdef DEBUG
-    std::cout << "Error: " << ec.message() << "\n";
+        std::cout << "Error: " << ec.message() << "\n";
 #endif
+    }
 }
 
 IrcClient::~IrcClient()
@@ -29,20 +26,27 @@ IrcClient::~IrcClient()
 
 }
 
-bool IrcClient::chat(const std::string& whom,const std::string& msg)
+void IrcClient::oper(const std::string& user,const std::string& pwd)
+{
+    send_request("OPER "+user+" "+pwd);
+}
+void IrcClient::chat(const std::string& whom,const std::string& msg)
 {
     return send_request("PRIVMSG "+whom+" :"+msg);
 }
 
-bool IrcClient::login(const std::string& user,const std::string& ch)
+void IrcClient::login(const std::string& user,const std::string& ch,const std::string& user_pwd,const std::string& ch_pwd)
 {
-    if (  (send_request("NICK "+user))
-        &&(send_request("USER "+user+ " 0 * "+user))
-        &&(send_request("JOIN "+ch))
-       )
-        return true;
+    if (!user_pwd.empty())
+        send_request("PASS "+user_pwd);
+
+    send_request("NICK "+user);
+    send_request("USER "+user+ " 0 * "+user);
+
+    if (ch_pwd.empty())
+        send_request("JOIN "+ch);
     else
-        return false;
+        send_request("JOIN "+ch+" "+ch_pwd);
 }
 
 void IrcClient::process_request(std::size_t readed)
@@ -129,14 +133,52 @@ void IrcClient::handle_read_request(const boost::system::error_code& err, std::s
     }
 }
 
-bool IrcClient::send_request(const std::string& msg)
+void IrcClient::handle_write_request(const boost::system::error_code& err, std::size_t bytewrited)
+{    
+    if (!err)    
+    {		
+        request_.consume(bytewrited);		
+        if (request_.size())			
+            boost::asio::async_write(socket_,
+            request_,
+            boost::bind(&IrcClient::handle_write_request, this,boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred)); 
+    }    
+    else    
+    {
+#ifdef DEBUG        
+        std::cout << "Error: " << err.message() << "\n";
+#endif 
+    }
+}
+
+void IrcClient::handle_connect_request(const boost::system::error_code& err)
+{
+    if (!err)
+    {
+        boost::asio::async_read_until(socket_, response_, "\r\n",
+            boost::bind(&IrcClient::handle_read_request, this,
+            boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred));
+    }
+    else if (err != boost::asio::error::eof)
+    {
+#ifdef DEBUG
+        std::cout << "Error: " << err.message() << "\n";
+#endif
+    }
+}
+
+void IrcClient::send_command(const std::string& cmd)
+{
+    send_request(cmd);
+}
+
+void IrcClient::send_request(const std::string& msg)
 {
     boost::system::error_code ec;
     std::ostream request_stream(&request_);
     request_stream << msg+"\r\n";
 
-    boost::asio::write(socket_,request_,ec);
-
-    return !ec?true:false;
-
+    boost::asio::async_write(socket_, request_,
+        boost::bind(&IrcClient::handle_write_request, this,
+        boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
 }
