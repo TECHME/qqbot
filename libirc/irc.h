@@ -22,11 +22,16 @@ public:
     ~IrcClient();
 private:
     void handle_read_request(const boost::system::error_code& err, std::size_t readed);
-    bool send_request(const std::string& msg);
+    void handle_write_request(const boost::system::error_code& err, std::size_t writed);
+    void handle_connect_request(const boost::system::error_code& err);
+    void send_request(const std::string& msg);
     void process_request(std::size_t readed);
 public:
-    bool login(const std::string& user,const std::string& ch);
-    bool chat(const std::string& whom,const std::string& msg);
+    void login(const std::string& user,const std::string& ch,const std::string& user_pwd="",const std::string& ch_pwd="");
+    void chat(const std::string& whom,const std::string& msg);
+    void send_command(const std::string& cmd);
+    void oper(const std::string& user,const std::string& pwd);
+
 private:
     boost::asio::ip::tcp::resolver  resolver_;
     boost::asio::ip::tcp::socket    socket_;
