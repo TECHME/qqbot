@@ -1,6 +1,10 @@
 #include "irc.h"
 
-IrcClient::IrcClient(boost::asio::io_service &io_service,const privmsg_cb &cb,const std::string& server, const std::string& port):cb_(cb),resolver_(io_service),socket_(io_service)
+IrcClient::IrcClient(boost::asio::io_service &io_service,const std::string& user,const std::string& user_pwd,const std::string& server, const std::string& port):cb_(0),
+resolver_(io_service),socket_(io_service),
+user_(user),pwd_(user_pwd),
+server_(server),port_(port),
+login_(false)
 {
   
     boost::asio::ip::tcp::resolver::query query(server,port);
@@ -35,18 +39,28 @@ void IrcClient::chat(const std::string& whom,const std::string& msg)
     return send_request("PRIVMSG "+whom+" :"+msg);
 }
 
-void IrcClient::login(const std::string& user,const std::string& ch,const std::string& user_pwd,const std::string& ch_pwd)
+void IrcClient::login(const privmsg_cb &cb)
 {
-    if (!user_pwd.empty())
-        send_request("PASS "+user_pwd);
+    cb_=cb;
+}
 
-    send_request("NICK "+user);
-    send_request("USER "+user+ " 0 * "+user);
+void IrcClient::join(const std::string& ch,const std::string &pwd)
+{
+    if (!login_)
+    {
+        boost::lock_guard<boost::recursive_mutex> guard(msg_queue_lock_);
 
-    if (ch_pwd.empty())
-        send_request("JOIN "+ch);
-    else
-        send_request("JOIN "+ch+" "+ch_pwd);
+        if (pwd.empty())
+            msg_queue_.push_back("JOIN "+ch);
+        else
+            msg_queue_.push_back("JOIN "+ch+" "+pwd);
+    }else
+    {
+        if (pwd.empty())
+            send_request("JOIN "+ch);
+        else
+            send_request("JOIN "+ch+" "+pwd);
+    }
 }
 
 void IrcClient::process_request(std::size_t readed)
@@ -155,6 +169,25 @@ void IrcClient::handle_connect_request(const boost::system::error_code& err)
 {
     if (!err)
     {
+        if (!pwd_.empty())
+            send_request("PASS "+pwd_);
+
+        send_request("NICK "+user_);
+        send_request("USER "+user_+ " 0 * "+user_);
+
+        login_=true;
+        
+        if (msg_queue_.size())
+        {
+            boost::lock_guard<boost::recursive_mutex> guard(msg_queue_lock_);
+            if (msg_queue_.size())
+            {
+                std::list<std::string>::iterator it=msg_queue_.begin();
+                std::string join=*it;
+                msg_queue_.pop_front();
+                send_request(join);
+            }
+        }
         boost::asio::async_read_until(socket_, response_, "\r\n",
             boost::bind(&IrcClient::handle_read_request, this,
             boost::asio::placeholders::error,boost::asio::placeholders::bytes_transferred));
