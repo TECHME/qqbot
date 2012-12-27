@@ -247,11 +247,12 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 				buf = boost::str(boost::wformat(
 				L"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" > ")
 				% qqmsg.cface);
+				std::string imgurl = boost::str(boost::format("http://w.qq.com/cgi-bin/get_group_pic?pic=%s")				% wide_utf8(qqmsg.cface));
 				if (resend_img){
 					//TODO send it
-					qqclient.send_group_message(group_code, buf, qq_msg_sended);
+					qqclient.send_group_message(group_code, utf8_wide(imgurl), qq_msg_sended);
 				}
-				ircmsg += wide_utf8(buf);
+				ircmsg += imgurl;
 			}break;
 			case qqMsg::LWQQ_MSG_FACE:
 			{

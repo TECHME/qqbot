@@ -389,19 +389,16 @@ void WebQQ::send_group_message(qqGroup& group, std::wstring msg, boost::function
 
 void WebQQ::send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
 {
-	pt::wptree pt;
-	pt.put(L"group_uin",group);
-	pt.put(L"content", msg);
-	pt.put(L"msg_id", m_msg_id);
-	pt.put(L"clientid", utf8_wide(this->m_clientid));
-	pt.put(L"psessionid", utf8_wide(this->m_psessionid));
-	std::wstringstream outjson;
-	js::write_json(outjson, pt);
+
+	
 	//unescape for POST
-	std::string java = wide_utf8(outjson.str());
 	std::string postdata = boost::str(
-		boost::format("r=%s&clientid=%s&psessionid=%s")
-		% parse_unescape(java)
+		boost::format("r={\"group_uin\":\"%s\, "
+					"\"content\":\"%s\","
+				"\"msg_id\":%ld,"
+				"\"clientid\":\"%s\","
+				"\"psessionid\":\"%s\"}&clientid=%s&psessionid=%s")
+		% wide_utf8(group) % url_encode(wide_utf8(msg).c_str()) % m_msg_id % m_clientid % m_psessionid 
 		% m_clientid
 		% m_psessionid
 	);
