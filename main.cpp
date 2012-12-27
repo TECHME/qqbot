@@ -235,7 +235,7 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 			break;
 			case qqMsg::LWQQ_MSG_CFACE:			
 			{
-				std::wstring buf = boost::str(boost::wformat(
+				buf = boost::str(boost::wformat(
 				L"<img src=\"http://w.qq.com/cgi-bin/get_group_pic?pic=%s\" > ")
 				% qqmsg.cface);
 				if (resend_img){
