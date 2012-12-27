@@ -389,12 +389,12 @@ void WebQQ::send_group_message(qqGroup& group, std::wstring msg, boost::function
 
 void WebQQ::send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
 {
-
-	
 	//unescape for POST
 	std::string postdata = boost::str(
 		boost::format("r={\"group_uin\":\"%s\, "
-					"\"content\":\"%s\","
+					"\"content\":["
+						"[\"font\",{\"name\":\"宋体\",\"size\":\"13\",\"style\":[0,0,0],\"color\":\"000000\"}], \"%s\""
+					  "],"
 				"\"msg_id\":%ld,"
 				"\"clientid\":\"%s\","
 				"\"psessionid\":\"%s\"}&clientid=%s&psessionid=%s")
