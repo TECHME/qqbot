@@ -274,18 +274,20 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 
 fs::path configfilepath()
 {
-	if ( fs::exists(fs::path(progname) / "qqbotrc"))
+	if (fs::exists(fs::path(progname) / "qqbotrc"))
 		return fs::path(progname) / "qqbotrc";
 	if (getenv("USERPROFILE"))
 	{
-		if ( fs::exists(fs::path(getenv("USERPROFILE")) / ".qqbotrc"))
+		if (fs::exists(fs::path(getenv("USERPROFILE")) / ".qqbotrc"))
 			return fs::path(getenv("USERPROFILE")) / ".qqbotrc";
 	}
 	if (getenv("HOME")){
-		if ( fs::exists(fs::path(getenv("HOME")) / ".qqbotrc"))
+		if (fs::exists(fs::path(getenv("HOME")) / ".qqbotrc"))
 			return fs::path(getenv("HOME")) / ".qqbotrc";
 	}
-	if ( fs::exists("/etc/qqbotrc"))
+        if (fs::exists("./qqbotrc/.qqbotrc"))
+                return fs::path("./qqbotrc/.qqbotrc");
+	if (fs::exists("/etc/qqbotrc"))
 		return fs::path("/etc/qqbotrc");
 	throw "not configfileexit";
 }
