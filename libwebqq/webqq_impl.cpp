@@ -394,7 +394,7 @@ void WebQQ::send_group_message(std::wstring group, std::string msg, boost::funct
 		boost::format("r={\"group_uin\":\"%s\", "
 					"\"content\":\"["
 					"\\\"%s\\\","
-						"[\\\"font\\\",{\\\"name\\\":\\\"宋体\\\",\\\"size\\\":\\\"13\\\",\\\"style\\\":[0,0,0],\\\"color\\\":\\\"000000\\\"}]"
+						"[\\\"font\\\",{\\\"name\\\":\\\"宋体\\\",\\\"size\\\":\\\"9\\\",\\\"style\\\":[0,0,0],\\\"color\\\":\\\"000000\\\"}]"
 					  "]\","
 				"\"msg_id\":%ld,"
 				"\"clientid\":\"%s\","
