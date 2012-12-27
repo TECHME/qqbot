@@ -168,7 +168,7 @@ private:
 
 
 static qqlog logfile;
-static bool resend_img = true;
+static bool resend_img = false;
 
 static std::string progname;
 
