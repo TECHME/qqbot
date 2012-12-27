@@ -166,10 +166,62 @@ private:
 	fs::wpath m_path;
 };
 
+
 static qqlog logfile;
 static bool resend_img = true;
 
 static std::string progname;
+
+/*
+ * 用来配置是否是在一个组里的，一个组里的群和irc频道相互转发.
+ */
+static std::vector< std::vector<std::string> > channelgroups;
+
+static bool in_group(const std::vector<std::string> & group, std::string id)
+{
+	BOOST_FOREACH(const std::string & i ,  group)
+	{
+		if (i == id )
+			return true;
+	}
+	return false;
+}
+
+/*
+ * 查找同组的其他聊天室和qq群.
+ */
+static std::vector<std::string> & find_group(std::string id)
+{
+	static std::vector<std::string> empty;
+	BOOST_FOREACH(std::vector<std::string> & g ,  channelgroups)
+	{
+		if (in_group(g, id))
+			return g;
+	}
+	return empty;
+}
+
+static bool same_group(std::string id1, std::string id2)
+{
+	std::vector< std::string > g1 = find_group(id1);
+	if (g1.empty())
+		return false;
+	return in_group(g1, id2);
+}
+
+//从命令行或者配置文件读取组信息.
+static void build_group(std::string chanelmapstring)
+{
+	std::vector<std::string> gs;
+	boost::split(gs, chanelmapstring, boost::is_any_of(";"));
+	BOOST_FOREACH(std::string  pergroup, gs)
+	{
+		std::vector<std::string> group;
+	 	boost::split(group, pergroup, boost::is_any_of(","));
+	 	channelgroups.push_back(group);
+	}
+}
+
 
 // 简单的消息命令控制.
 static void qqbot_control(const std::string msg)
@@ -204,9 +256,23 @@ static void qq_msg_sended(const boost::system::error_code& ec)
 static void irc_message_got(const IrcMsg pMsg,  webqq & qqclient)
 {
 	std::cout <<  pMsg.msg<< std::endl;
-	qqGroup* group = qqclient.get_Group_by_qq(L"3597082");
-	if (group){
-		qqclient.send_group_message(*group, boost::str(boost::format("[irc][%s]说：%s") % pMsg.whom % pMsg.msg), qq_msg_sended);
+
+	std::string from = std::string("irc:") + pMsg.from.substr(1);
+	
+	BOOST_FOREACH(std::string groupmember, find_group(from))
+	{
+		if (groupmember != from){
+			if (groupmember[0]=='q' && groupmember[1]=='q')
+			{
+				qqGroup* group = qqclient.get_Group_by_qq(utf8_wide(groupmember.substr(3)));
+				if (group){
+					qqclient.send_group_message(*group, boost::str(boost::format("%s 说：%s") % pMsg.whom % pMsg.msg), qq_msg_sended);
+				}
+			}else if (groupmember[0]=='i' && groupmember[1]=='r'&&groupmember[1]=='c'){
+				//TODO, irc频道之间转发.
+				;
+			}
+		}
 	}
 }
 
@@ -275,7 +341,20 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 
 	if (group)
 		logfile.add_log(group->qqnum, wide_utf8(message));
-	ircclient.chat("#avplayer", ircmsg);
+	// send to irc
+	if (group)
+	{
+		std::string from = std::string("qq:") + wide_utf8(group->qqnum);
+
+	 	BOOST_FOREACH(std::string groupmember, find_group(from))
+		{
+			if (groupmember != from){
+				if (groupmember[0]=='i' && groupmember[1]=='r'&&groupmember[1]=='c'){
+					ircclient.chat(std::string("#") + groupmember.substr(4), ircmsg);
+				}
+			}
+		}
+	}
 }
 
 fs::path configfilepath()
@@ -304,6 +383,7 @@ int main(int argc, char *argv[])
     std::string ircnick, ircroom;
     std::string cfgfile;
 	std::string logdir;
+	std::string chanelmap;
 
     bool isdaemon=false;
 
@@ -321,6 +401,7 @@ int main(int argc, char *argv[])
 		( "daemon,d", po::value<bool>(&isdaemon), "go to background" )
 		( "nick", po::value<std::string>(&ircnick), "irc nick" )
 		( "room", po::value<std::string>(&ircroom), "irc room" )
+		( "map", po::value<std::string>(&chanelmap), "map qqgroup to irc channel. eg: --map:qq:12345,irc:avplayer;qq:56789,irc:ubuntu-cn" )
 		;
 
 	po::variables_map vm;
@@ -349,6 +430,8 @@ int main(int argc, char *argv[])
 	// 设置日志自动记录目录.
 	if (! logdir.empty())
 		logfile.log_path(logdir);
+
+	build_group(chanelmap);
 
     if (isdaemon)
 		daemon(0, 0);
