@@ -167,7 +167,7 @@ private:
 };
 
 static qqlog logfile;
-static bool resend_img = false;
+static bool resend_img = true;
 
 static std::string progname;
 
@@ -196,11 +196,16 @@ static void qqbot_control(const std::string msg)
 	}
 }
 
+static void qq_msg_sended(const boost::system::error_code& ec)
+{
+	
+}
+
 static void irc_message_got(const IrcMsg pMsg)
 {
 }
 
-static void on_group_msg(std::wstring group_code, std::wstring who, const std::vector<qqMsg> & msg, webqq & qqclient)
+static void on_group_msg(std::wstring group_code, std::wstring who, const std::vector<qqMsg> & msg, webqq & qqclient, IrcClient & ircclient)
 {
 	qqBuddy * buddy = NULL;
 	qqGroup * group = qqclient.get_Group_by_gid(group_code);
@@ -213,9 +218,12 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 		nick = buddy->nick;
 		
 	std::wstring message;
+	std::string ircmsg;
 
 	message += nick;
 	message += L" 说：";
+	
+	ircmsg = boost::str(boost::format("*[qqbot][%s]：") % wide_utf8(nick));
 
 	BOOST_FOREACH(qqMsg qqmsg, msg)
 	{
@@ -225,6 +233,7 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 			case qqMsg::LWQQ_MSG_TEXT:
 			{
 				buf = qqmsg.text;
+				ircmsg += wide_utf8(buf);
 				if (!buf.empty()) {
 					boost::replace_all(buf, L"&", L"&amp;");
 					boost::replace_all(buf, L"<", L"&lt;");
@@ -240,12 +249,15 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 				% qqmsg.cface);
 				if (resend_img){
 					//TODO send it
+					qqclient.send_group_message(group_code, buf, qq_msg_sended);
 				}
+				ircmsg += wide_utf8(buf);
 			}break;
 			case qqMsg::LWQQ_MSG_FACE:
 			{
 				buf = boost::str(boost::wformat(
 					L"<img src=\"http://0.web.qstatic.com/webqqpic/style/face/%d.gif\" >") % qqmsg.face);
+				ircmsg += wide_utf8(buf);
 			}break;
 		}
 		message += buf;
@@ -256,7 +268,8 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 	qqbot_control(wide_utf8(message));
 
 	if (group)
-	 logfile.add_log(group->qqnum, wide_utf8(message));
+		logfile.add_log(group->qqnum, wide_utf8(message));
+	ircclient.chat("#avplayer", ircmsg);
 }
 
 fs::path configfilepath()
@@ -335,11 +348,11 @@ int main(int argc, char *argv[])
 	boost::asio::io_service asio;
 
 	IrcClient ircclient(asio, irc_message_got, "irc.freenode.net", "6667");
-	ircclient.login("qqbot_shenghua","#avplayer");
+	ircclient.login(ircnick,"#avplayer");
 
 	webqq qqclient(asio, qqnumber, password);
 	qqclient.start();
-	qqclient.on_group_msg(boost::bind(on_group_msg, _1, _2, _3, boost::ref(qqclient)));
+	qqclient.on_group_msg(boost::bind(on_group_msg, _1, _2, _3, boost::ref(qqclient), boost::ref(ircclient)));
 
     boost::asio::io_service::work work(asio);
     asio.run();

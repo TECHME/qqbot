@@ -23,6 +23,7 @@
 #include <boost/format.hpp>
 #include <boost/property_tree/json_parser.hpp>
 namespace js = boost::property_tree::json_parser;
+#include <boost/algorithm/string.hpp>
 
 #include "webqq.h"
 #include "webqq_impl.h"
@@ -52,6 +53,8 @@ using namespace qq;
 #define LWQQ_URL_REFERER_QUN_DETAIL "http://s.web2.qq.com/proxy.html?v=20110412001&id=3"
 #define LWQQ_URL_REFERER_DISCU_DETAIL "http://d.web2.qq.com/proxy.html?v=20110331002&id=2"
 
+#define LWQQ_URL_SEND_QUN_MSG "http://d.web2.qq.com/channel/send_qun_msg2"
+
 static void upcase_string(char *str, int len)
 {
     int i;
@@ -59,6 +62,35 @@ static void upcase_string(char *str, int len)
         if (islower(str[i]))
             str[i]= toupper(str[i]);
     }
+}
+
+///low level special char mapping
+static std::string parse_unescape(std::string source)
+{
+	std::string buf;
+    const char* ptr = source.c_str();
+    size_t idx;
+    while(*ptr!='\0'){
+        idx = strcspn(ptr,"\n\t\\;&\"+");
+        if(ptr[idx] == '\0'){
+			return source;
+            break;
+        }
+        buf.append(ptr, idx);
+        switch(ptr[idx]){
+            //note buf point the end position
+            case '\n': buf+="\\\\n";break;
+            case '\t': buf+="\\\\t";break;
+            case '\\': buf+="\\\\\\\\";break;
+            //i dont know why ; is not worked.so we use another expression
+            case ';' : buf+="\\u003B";break;
+            case '&' : buf+="\\u0026";break;
+            case '"' : buf+="\\\\\\\"";break;
+            case '+' : buf+="\\u002B";break;
+        }
+        ptr+=idx+1;
+    }
+	return buf;
 }
 
 static std::string generate_clientid()
@@ -327,7 +359,16 @@ qq::WebQQ::WebQQ(boost::asio::io_service& _io_service,
 	std::string _qqnum, std::string _passwd, LWQQ_STATUS _status)
 	:m_io_service(_io_service), m_qqnum(_qqnum), m_passwd(_passwd), m_status(_status)
 {
-	//开始登录!
+#ifndef _WIN32
+	/* Set msg_id */
+    timeval tv;
+    long v;
+    gettimeofday(&tv, NULL);
+    v = tv.tv_usec;
+    v = (v - v % 1000) / 1000;
+    v = v % 10000 * 10000;
+    m_msg_id = v;
+#endif
 }
 
 void qq::WebQQ::start()
@@ -339,6 +380,50 @@ void qq::WebQQ::start()
 	urdl_download(stream, LWQQ_URL_VERSION,
 		boost::bind(&WebQQ::cb_got_version, this, boost::asio::placeholders::error, _2, _3)
 	);
+}
+
+void WebQQ::send_group_message(qqGroup& group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
+{
+	send_group_message(group.gid, msg, donecb);
+}
+
+void WebQQ::send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb)
+{
+	pt::wptree pt;
+	pt.put(L"group_uin",group);
+	pt.put(L"content", msg);
+	pt.put(L"msg_id", m_msg_id);
+	pt.put(L"clientid", utf8_wide(this->m_clientid));
+	pt.put(L"psessionid", utf8_wide(this->m_psessionid));
+	std::wstringstream outjson;
+	js::write_json(outjson, pt);
+	//unescape for POST
+	std::string java = wide_utf8(outjson.str());
+	std::string postdata = boost::str(
+		boost::format("r=%s&clientid=%s&psessionid=%s")
+		% parse_unescape(java)
+		% m_clientid
+		% m_psessionid
+	);
+	lwqq_puts(postdata.c_str());
+
+	read_streamptr stream(new urdl::read_stream(m_io_service));
+	stream->set_option(urdl::http::request_method("POST"));
+	stream->set_option(urdl::http::cookie(this->m_cookies.lwcookies));
+	stream->set_option(urdl::http::request_referer("http://d.web2.qq.com/proxy.html?v=20101025002"));
+	stream->set_option(urdl::http::request_content_type("application/x-www-form-urlencoded"));
+	stream->set_option(urdl::http::request_content(postdata));
+
+	urdl_download(stream, LWQQ_URL_SEND_QUN_MSG, 
+		boost::bind(&WebQQ::cb_send_msg, this, boost::asio::placeholders::error, _2, _3, donecb)
+	);
+}
+
+void WebQQ::cb_send_msg(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf & buffer, boost::function<void (const boost::system::error_code& ec)> donecb)
+{
+	const char* str = boost::asio::buffer_cast<const char *>(buffer.data());
+	std::cout <<  str <<  std::endl;
+	donecb(ec);
 }
 
 void WebQQ::cb_got_version(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf & buffer)
@@ -422,6 +507,7 @@ void WebQQ::update_group_detail(qqGroup& group)
 		read_streamptr stream(new urdl::read_stream(m_io_service));
 		stream->set_option(urdl::http::cookie(this->m_cookies.lwcookies));
 		stream->set_option(urdl::http::request_referer(LWQQ_URL_REFERER_QUN_DETAIL));
+		
 		urdl_download(stream, url,
 			boost::bind(&WebQQ::cb_group_qqnumber, this, boost::asio::placeholders::error, _2, _3, boost::ref(group))
 		);

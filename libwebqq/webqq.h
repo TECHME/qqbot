@@ -97,6 +97,9 @@ public:
 
 	void start();
 
+	void send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
+	void send_group_message(qqGroup &  group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
+	
 	qqGroup * get_Group_by_gid(std::wstring);
 private:
     class qq::WebQQ * const impl;

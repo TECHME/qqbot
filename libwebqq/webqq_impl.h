@@ -94,7 +94,8 @@ public:
 	void login_withvc(std::string vccode);
 
 	void start();
-	void send_simple_message( );
+	void send_group_message(std::wstring group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
+	void send_group_message(qqGroup &  group, std::wstring msg, boost::function<void (const boost::system::error_code& ec)> donecb);
 	void update_group_list();
     void update_group_detail(qqGroup &  group);
 
@@ -139,6 +140,9 @@ private:
 	void cb_group_list(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&);
 	void cb_group_member(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, qqGroup &);
 	void cb_group_qqnumber(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, qqGroup &);
+
+	void cb_send_msg(const boost::system::error_code& ec, read_streamptr stream, boost::asio::streambuf&, boost::function<void (const boost::system::error_code& ec)> donecb);
+
 private:
     boost::asio::io_service & m_io_service;
 
@@ -147,6 +151,7 @@ private:
 
 	std::string	m_version;
 	std::string m_clientid, m_psessionid, m_vfwebqq;
+	long m_msg_id;     // update on every message.
 
 	LwqqVerifyCode m_verifycode;
 	LwqqCookies m_cookies;
