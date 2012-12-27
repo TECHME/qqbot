@@ -21,14 +21,12 @@ public:
     IrcClient(boost::asio::io_service &io_service, const privmsg_cb &cb,const std::string& server, const std::string& port);
     ~IrcClient();
 private:
-    void handle_connect(const boost::system::error_code& err);
-    void handle_write_request(const boost::system::error_code& err, std::size_t bytewritedr);
-    void handle_read_request(const boost::system::error_code& err);
-    void send_request(const std::string& msg);
-    void process_request();
+    void handle_read_request(const boost::system::error_code& err, std::size_t readed);
+    bool send_request(const std::string& msg);
+    void process_request(std::size_t readed);
 public:
-    void login(const std::string& user,const std::string& ch);
-    void chat(const std::string& whom,const std::string& msg);
+    bool login(const std::string& user,const std::string& ch);
+    bool chat(const std::string& whom,const std::string& msg);
 private:
     boost::asio::ip::tcp::resolver  resolver_;
     boost::asio::ip::tcp::socket    socket_;
