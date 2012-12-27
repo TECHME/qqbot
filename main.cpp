@@ -280,6 +280,8 @@ static void on_group_msg(std::wstring group_code, std::wstring who, const std::v
 	// qq消息控制.	
 	qqbot_control(wide_utf8(message));
 
+	if (group)
+	 logfile.add_log(group->qqnum, wide_utf8(message));
 }
 
 fs::path configfilepath()
